@@ -1,3 +1,50 @@
-It looks like the structured PRD/SRS JSON was not included in your message.
+DIRECT AGENT INSTRUCTION:
 
-Please provide the structured PRD/SRS JSON so I can generate the complete implementation backlog in the required Markdown format.
+
+
+You are working inside a real git repository.
+
+Implement exactly ONE backend story.
+
+Modify repository files directly.
+
+Create missing files if needed.
+
+Do not explain.
+
+Do not summarize.
+
+Do not output markdown.
+
+Only make code changes.
+
+
+
+Stack:
+
+- NestJS
+
+- Kysely
+
+- PostgreSQL
+
+
+
+Task to implement:
+
+ Initialize NestJS backend for multi-tenant task management SaaS.
+
+Create modules under src/: auth, users, projects, tasks, comments, attachments, notifications, audit, dashboard, and database.
+
+Set up PostgreSQL via Kysely in database/database.module.ts and database.service.ts.
+
+Define tables: users, projects, tasks, comments, attachments, notifications, audit_logs with UUID PKs and relations.
+
+Implement basic endpoints:
+POST /api/auth/register, POST /api/auth/login
+CRUD for /api/projects and /api/tasks
+
+Add JWT auth, bcrypt password hashing, and role field (ADMIN|MANAGER|MEMBER).
+
+Ensure no password_hash is returned.
+
