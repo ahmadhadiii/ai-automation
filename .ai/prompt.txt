@@ -11,6 +11,8 @@ src/auth/auth.service.ts
 src/auth/dto/login.dto.ts
 src/auth/dto/register.dto.ts
 src/auth/jwt.strategy.ts
+src/auth/roles.decorator.ts
+src/auth/roles.guard.ts
 src/comments/comments.module.ts
 src/comments/comments.service.ts
 src/dashboard/dashboard.module.ts
@@ -22,6 +24,7 @@ src/database/migrate.ts
 src/database/migrations/001_init.sql
 src/database/migrations/001_init_users.ts
 src/database/migrations/001_initial.ts
+src/database/migrations/002_create_users.ts
 src/database/types.ts
 src/main.ts
 src/modules/database/database.module.ts
@@ -39,6 +42,8 @@ src/tasks/dto/update-task.dto.ts
 src/tasks/tasks.controller.ts
 src/tasks/tasks.module.ts
 src/tasks/tasks.service.ts
+src/users/dto/user-response.dto.ts
+src/users/users.controller.ts
 src/users/users.module.ts
 src/users/users.service.ts
 
@@ -59,60 +64,70 @@ Stack:
 - PostgreSQL
 
 Task to implement:
----
-TASK: Database and Users Foundation
+DIRECT AGENT INSTRUCTION:
 
-FIRST: Read the following existing files before writing any code:
+You are working inside a real git repository.
+Implement exactly ONE backend story.
+Modify repository files directly.
+Create missing files if needed.
+Do not explain. Do not summarize. Do not output markdown. Only make code changes.
+
+Stack: NestJS + Kysely + PostgreSQL
+
+FIRST: Read these existing files before writing any code:
 - src/app.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
-- src/main.ts
-Match the exact code style, Kysely query patterns, and module structure you find there.
+- src/auth/auth.service.ts
+- src/auth/auth.guard.ts
+- src/auth/roles.guard.ts
+- src/auth/roles.decorator.ts
+- src/auth/dto/register.dto.ts
+Match the exact code style, Kysely patterns, and module structure you find there.
+
+TASK: Infrastructure and Database Setup
 
 MODULES TO CREATE OR MODIFY:
-- src/database/database.module.ts
-- src/database/database.service.ts
-- src/database/types.ts
-- src/database/migrations/002_create_users.ts
-- src/users/users.module.ts
-- src/users/users.controller.ts
-- src/users/users.service.ts
-- src/users/dto/user-response.dto.ts
+- src/database/kysely.module.ts
+- src/database/database.types.ts
 - src/app.module.ts
+- src/main.ts
 
 DATABASE CHANGES:
-Create table users with columns:
-- id UUID PRIMARY KEY
-- tenant_id UUID NOT NULL
-- email TEXT NOT NULL UNIQUE
-- password_hash TEXT NOT NULL
-- role TEXT NOT NULL
-- created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-
-Add index:
-- unique index on email
+- none
 
 ENDPOINTS TO IMPLEMENT:
-- GET /api/users — ADMIN — no body — response: [{ id: UUID, email: string, role: string, createdAt: string }]
+- none
 
-KYSELY QUERY EXAMPLE:
-db.selectFrom('users').select(['id','email','role','created_at']).execute()
+ROLE RESTRICTIONS:
+- none
+
+KYSELY PATTERN TO FOLLOW:
+- db.selectFrom('users').selectAll().execute()
 
 BUSINESS RULES:
-- Must never return password_hash
-- Only ADMIN can access endpoint
-- All queries must filter by tenant_id
-- Map created_at → createdAt in response
+- Configure Kysely with PostgreSQL dialect using existing DatabaseService patterns
+- Ensure KyselyModule exports database connection for injection
+- Register global ThrottlerModule
+- Ensure app module imports KyselyModule and ThrottlerModule
+
+SECURITY REQUIREMENTS:
+- Enable CORS in main.ts with origin from env, credentials true, methods GET,HEAD,PUT,PATCH,POST,DELETE
+- Apply global JwtAuthGuard except for public auth routes (structure only, guard already exists)
+- Ensure compatibility with RolesGuard
 
 DONE WHEN:
-- users table exists
-- GET /api/users returns list of users without password_hash
+- Application boots without errors
+- Database connection is established via Kysely
+- CORS is enabled
+- Global throttling is active
 
-CONSTRAINTS:
-- Use NestJS + Kysely + PostgreSQL only
-- UUID primary keys via uuidv4()
-- snake_case column names
+HARD CONSTRAINTS:
+- Role values are EXACTLY: Admin, HRManager, Member — never ADMIN, never all caps
+- Role is NEVER accepted from request body — always set server-side
 - Never return password_hash in any response
-- Add tenant_id to every table and filter every query by it
-- No explanations. No summaries. Only repository code changes.
----
+- Every table needs tenant_id and every query filters by it
+- UUID PKs via uuidv4()
+- snake_case column names
+- Every module needs a controller — never a service without endpoints
+- New migrations start at 003_ minimum
