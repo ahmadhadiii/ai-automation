@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsIn, IsUUID } from 'class-validator';
+import { IsString, IsOptional, IsIn, IsUUID, IsDateString } from 'class-validator';
 
 export class UpdateTaskDto {
   @IsOptional()
@@ -14,10 +14,10 @@ export class UpdateTaskDto {
   status?: 'TODO' | 'IN_PROGRESS' | 'DONE';
 
   @IsOptional()
-  @IsIn(['LOW', 'MEDIUM', 'HIGH'])
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH';
-
-  @IsOptional()
   @IsUUID()
   assignee_id?: string;
+
+  @IsOptional()
+  @IsDateString()
+  due_date?: string;
 }

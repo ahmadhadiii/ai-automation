@@ -1,3 +1,40 @@
+EXISTING REPO FILES (read these first to match style and patterns):
+src/app.module.ts
+src/attachments/attachments.module.ts
+src/attachments/attachments.service.ts
+src/audit/audit.module.ts
+src/audit/audit.service.ts
+src/auth/auth.controller.ts
+src/auth/auth.guard.ts
+src/auth/auth.module.ts
+src/auth/auth.service.ts
+src/auth/dto/login.dto.ts
+src/auth/dto/register.dto.ts
+src/auth/jwt.strategy.ts
+src/comments/comments.module.ts
+src/comments/comments.service.ts
+src/dashboard/dashboard.module.ts
+src/dashboard/dashboard.service.ts
+src/database/database.module.ts
+src/database/database.service.ts
+src/database/migrate.ts
+src/database/types.ts
+src/main.ts
+src/notifications/notifications.module.ts
+src/notifications/notifications.service.ts
+src/projects/dto/create-project.dto.ts
+src/projects/dto/update-project.dto.ts
+src/projects/projects.controller.ts
+src/projects/projects.module.ts
+src/projects/projects.service.ts
+src/tasks/dto/create-task.dto.ts
+src/tasks/dto/update-task.dto.ts
+src/tasks/tasks.controller.ts
+src/tasks/tasks.module.ts
+src/tasks/tasks.service.ts
+src/users/users.module.ts
+src/users/users.service.ts
+
 DIRECT AGENT INSTRUCTION:
 
 
@@ -32,19 +69,59 @@ Stack:
 
 Task to implement:
 
- Initialize NestJS backend for multi-tenant task management SaaS.
+ ---
+TASK: Project Setup and Database Foundation
 
-Create modules under src/: auth, users, projects, tasks, comments, attachments, notifications, audit, dashboard, and database.
+FIRST: Read the following existing files before writing any code:
+- src/app.module.ts
+- src/database/database.service.ts
+- src/database/types.ts
+- src/main.ts
+Match the exact code style, Kysely query patterns, and module structure you find there.
 
-Set up PostgreSQL via Kysely in database/database.module.ts and database.service.ts.
+MODULES TO CREATE OR MODIFY:
+- src/database/database.module.ts
+- src/database/database.service.ts
+- src/database/types.ts
+- src/database/migrations/001_init_users.ts
+- src/app.module.ts
 
-Define tables: users, projects, tasks, comments, attachments, notifications, audit_logs with UUID PKs and relations.
+DATABASE CHANGES:
+- Enable extension: uuid-ossp
+- Create table: users
+  - id UUID PRIMARY KEY DEFAULT uuid_generate_v4()
+  - tenant_id UUID NOT NULL
+  - email TEXT NOT NULL UNIQUE
+  - password_hash TEXT NOT NULL
+  - role TEXT NOT NULL CHECK (role IN ('ADMIN','MEMBER'))
+  - created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  - updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+- Indexes:
+  - unique index on email
 
-Implement basic endpoints:
-POST /api/auth/register, POST /api/auth/login
-CRUD for /api/projects and /api/tasks
+ENDPOINTS TO IMPLEMENT:
+- none
 
-Add JWT auth, bcrypt password hashing, and role field (ADMIN|MANAGER|MEMBER).
+KYSELY QUERY EXAMPLE:
+db.selectFrom('users').selectAll().execute()
 
-Ensure no password_hash is returned.
+BUSINESS RULES:
+- Configure Kysely with Postgres dialect
+- DatabaseService must be injectable via DatabaseModule
+- All tables must include tenant_id and all queries must filter by tenant_id
+- Use UUID primary keys via uuid_generate_v4()
+
+DONE WHEN:
+- App boots successfully
+- Database connection is established
+- users table exists with correct schema
+
+CONSTRAINTS:
+- Use NestJS + Kysely + PostgreSQL only
+- UUID primary keys via uuidv4()
+- snake_case column names
+- Never return password_hash in any response
+- Add tenant_id to every table and filter every query by it
+- No explanations. No summaries. Only repository code changes.
+---
 

@@ -34,11 +34,10 @@ export class AuthService {
         id,
         email: dto.email,
         password_hash,
-        name: dto.name,
         role: dto.role || 'MEMBER',
         tenant_id: dto.tenant_id,
       })
-      .returning(['id', 'email', 'name', 'role', 'tenant_id', 'created_at'])
+      .returning(['id', 'email', 'role', 'tenant_id', 'created_at'])
       .executeTakeFirstOrThrow();
 
     const payload: JwtPayload = {

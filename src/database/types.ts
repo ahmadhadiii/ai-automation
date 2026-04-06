@@ -1,7 +1,8 @@
-import { Generated, ColumnType } from 'kysely';
+import { Generated } from 'kysely';
 
 export interface Database {
   users: UsersTable;
+  refresh_tokens: RefreshTokensTable;
   projects: ProjectsTable;
   tasks: TasksTable;
   comments: CommentsTable;
@@ -12,72 +13,81 @@ export interface Database {
 
 export interface UsersTable {
   id: Generated<string>;
+  tenant_id: string;
   email: string;
   password_hash: string;
-  name: string;
-  role: 'ADMIN' | 'MANAGER' | 'MEMBER';
-  tenant_id: string;
+  role: string;
+  is_active: Generated<boolean>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+}
+
+export interface RefreshTokensTable {
+  id: Generated<string>;
+  tenant_id: string;
+  user_id: string;
+  token_hash: string;
+  expires_at: Date;
+  created_at: Generated<Date>;
 }
 
 export interface ProjectsTable {
   id: Generated<string>;
+  tenant_id: string;
   name: string;
   description: string | null;
   owner_id: string;
-  tenant_id: string;
+  status: string;
   created_at: Generated<Date>;
-  updated_at: Generated<Date>;
 }
 
 export interface TasksTable {
   id: Generated<string>;
+  tenant_id: string;
+  project_id: string;
   title: string;
   description: string | null;
-  status: 'TODO' | 'IN_PROGRESS' | 'DONE';
-  priority: 'LOW' | 'MEDIUM' | 'HIGH';
-  project_id: string;
   assignee_id: string | null;
-  tenant_id: string;
+  status: string;
+  due_date: string | null;
   created_at: Generated<Date>;
-  updated_at: Generated<Date>;
 }
 
 export interface CommentsTable {
   id: Generated<string>;
-  body: string;
+  tenant_id: string;
   task_id: string;
   author_id: string;
-  tenant_id: string;
+  content: string;
   created_at: Generated<Date>;
 }
 
 export interface AttachmentsTable {
   id: Generated<string>;
-  filename: string;
-  url: string;
-  task_id: string;
-  uploaded_by: string;
   tenant_id: string;
-  created_at: Generated<Date>;
+  task_id: string;
+  file_name: string;
+  file_url: string;
+  uploaded_by: string;
+  uploaded_at: Generated<Date>;
 }
 
 export interface NotificationsTable {
   id: Generated<string>;
+  tenant_id: string;
   user_id: string;
   message: string;
   read: Generated<boolean>;
-  tenant_id: string;
   created_at: Generated<Date>;
 }
 
 export interface AuditLogsTable {
   id: Generated<string>;
-  user_id: string;
+  tenant_id: string;
+  user_id: string | null;
   action: string;
   entity_type: string;
-  entity_id: string;
-  tenant_id: string;
+  entity_id: string | null;
+  metadata: Record<string, unknown> | null;
   created_at: Generated<Date>;
 }

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsIn, IsUUID } from 'class-validator';
+import { IsString, IsOptional, IsIn, IsUUID, IsDateString } from 'class-validator';
 
 export class CreateTaskDto {
   @IsString()
@@ -12,14 +12,14 @@ export class CreateTaskDto {
   @IsIn(['TODO', 'IN_PROGRESS', 'DONE'])
   status?: 'TODO' | 'IN_PROGRESS' | 'DONE';
 
-  @IsOptional()
-  @IsIn(['LOW', 'MEDIUM', 'HIGH'])
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH';
-
   @IsUUID()
   project_id: string;
 
   @IsOptional()
   @IsUUID()
   assignee_id?: string;
+
+  @IsOptional()
+  @IsDateString()
+  due_date?: string;
 }

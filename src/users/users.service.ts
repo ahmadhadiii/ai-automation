@@ -8,7 +8,7 @@ export class UsersService {
   async findById(id: string) {
     const user = await this.db
       .selectFrom('users')
-      .select(['id', 'email', 'name', 'role', 'tenant_id', 'created_at', 'updated_at'])
+      .select(['id', 'email', 'role', 'tenant_id', 'is_active', 'created_at'])
       .where('id', '=', id)
       .executeTakeFirst();
 
@@ -22,7 +22,7 @@ export class UsersService {
   async findByTenant(tenantId: string) {
     return this.db
       .selectFrom('users')
-      .select(['id', 'email', 'name', 'role', 'tenant_id', 'created_at', 'updated_at'])
+      .select(['id', 'email', 'role', 'tenant_id', 'is_active', 'created_at'])
       .where('tenant_id', '=', tenantId)
       .execute();
   }

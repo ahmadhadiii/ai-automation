@@ -17,7 +17,6 @@ export class TasksService {
         title: dto.title,
         description: dto.description || null,
         status: dto.status || 'TODO',
-        priority: dto.priority || 'MEDIUM',
         project_id: dto.project_id,
         assignee_id: dto.assignee_id || null,
         tenant_id: tenantId,
@@ -53,7 +52,7 @@ export class TasksService {
   async update(id: string, dto: UpdateTaskDto, tenantId: string) {
     const task = await this.db
       .updateTable('tasks')
-      .set({ ...dto, updated_at: new Date() })
+      .set({ ...dto })
       .where('id', '=', id)
       .where('tenant_id', '=', tenantId)
       .returningAll()

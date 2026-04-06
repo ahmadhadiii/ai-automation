@@ -11,7 +11,7 @@ export class AttachmentsService {
       .selectAll()
       .where('task_id', '=', taskId)
       .where('tenant_id', '=', tenantId)
-      .orderBy('created_at', 'desc')
+      .orderBy('uploaded_at', 'desc')
       .execute();
   }
 }
