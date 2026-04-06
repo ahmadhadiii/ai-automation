@@ -18,8 +18,13 @@ src/dashboard/dashboard.service.ts
 src/database/database.module.ts
 src/database/database.service.ts
 src/database/migrate.ts
+src/database/migrations/001_init_users.ts
+src/database/migrations/001_initial.ts
 src/database/types.ts
 src/main.ts
+src/modules/database/database.module.ts
+src/modules/database/database.types.ts
+src/modules/database/kysely.provider.ts
 src/notifications/notifications.module.ts
 src/notifications/notifications.service.ts
 src/projects/dto/create-project.dto.ts
@@ -37,40 +42,23 @@ src/users/users.service.ts
 
 DIRECT AGENT INSTRUCTION:
 
-
-
 You are working inside a real git repository.
-
 Implement exactly ONE backend story.
-
 Modify repository files directly.
-
 Create missing files if needed.
-
 Do not explain.
-
 Do not summarize.
-
 Do not output markdown.
-
 Only make code changes.
 
-
-
 Stack:
-
 - NestJS
-
 - Kysely
-
 - PostgreSQL
 
-
-
 Task to implement:
-
- ---
-TASK: Project Setup and Database Foundation
+---
+TASK: Core Database and Infrastructure
 
 FIRST: Read the following existing files before writing any code:
 - src/app.module.ts
@@ -82,39 +70,107 @@ Match the exact code style, Kysely query patterns, and module structure you find
 MODULES TO CREATE OR MODIFY:
 - src/database/database.module.ts
 - src/database/database.service.ts
-- src/database/types.ts
-- src/database/migrations/001_init_users.ts
+- src/database/kysely.provider.ts
+- src/database/migrations/001_init.sql
 - src/app.module.ts
 
 DATABASE CHANGES:
-- Enable extension: uuid-ossp
-- Create table: users
-  - id UUID PRIMARY KEY DEFAULT uuid_generate_v4()
-  - tenant_id UUID NOT NULL
-  - email TEXT NOT NULL UNIQUE
-  - password_hash TEXT NOT NULL
-  - role TEXT NOT NULL CHECK (role IN ('ADMIN','MEMBER'))
-  - created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-  - updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-- Indexes:
-  - unique index on email
+Create migration at src/database/migrations/001_init.sql with:
+- Enable extension: CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+Create tables with UUID PK default uuid_generate_v4(), snake_case, timestamps, FKs, indexes, and checks:
+
+organizations:
+- id UUID PK
+- tenant_id UUID NOT NULL
+- name TEXT NOT NULL UNIQUE
+- created_at TIMESTAMPTZ DEFAULT now()
+
+users:
+- id UUID PK
+- tenant_id UUID NOT NULL
+- organization_id UUID NOT NULL FK organizations(id) ON DELETE CASCADE
+- email TEXT NOT NULL
+- password_hash TEXT NOT NULL
+- role TEXT NOT NULL CHECK (role IN ('Admin','ProjectManager','Member'))
+- is_active BOOLEAN DEFAULT true
+- created_at TIMESTAMPTZ DEFAULT now()
+- UNIQUE (organization_id, email)
+- indexes on organization_id, role
+
+projects:
+- id UUID PK
+- tenant_id UUID NOT NULL
+- organization_id UUID NOT NULL FK organizations(id) ON DELETE CASCADE
+- name TEXT NOT NULL
+- deadline DATE
+- status TEXT NOT NULL CHECK (status IN ('Active','Archived'))
+- created_by UUID NOT NULL FK users(id)
+- created_at TIMESTAMPTZ DEFAULT now()
+- indexes on organization_id, status
+
+tasks:
+- id UUID PK
+- tenant_id UUID NOT NULL
+- project_id UUID NOT NULL FK projects(id) ON DELETE CASCADE
+- assignee_id UUID FK users(id) ON DELETE SET NULL
+- title TEXT NOT NULL
+- description TEXT
+- status TEXT NOT NULL CHECK (status IN ('ToDo','InProgress','Completed'))
+- due_date DATE
+- created_by UUID NOT NULL FK users(id)
+- created_at TIMESTAMPTZ DEFAULT now()
+- updated_at TIMESTAMPTZ DEFAULT now()
+- indexes on project_id, assignee_id, status
+
+comments:
+- id UUID PK
+- tenant_id UUID NOT NULL
+- task_id UUID NOT NULL FK tasks(id) ON DELETE CASCADE
+- user_id UUID NOT NULL FK users(id) ON DELETE CASCADE
+- content TEXT NOT NULL
+- created_at TIMESTAMPTZ DEFAULT now()
+- indexes on task_id, user_id
+
+attachments:
+- id UUID PK
+- tenant_id UUID NOT NULL
+- task_id UUID NOT NULL FK tasks(id) ON DELETE CASCADE
+- uploaded_by UUID NOT NULL FK users(id)
+- file_name TEXT NOT NULL
+- file_path TEXT NOT NULL
+- file_size BIGINT NOT NULL
+- created_at TIMESTAMPTZ DEFAULT now()
+- index on task_id
+
+audit_logs:
+- id UUID PK
+- tenant_id UUID NOT NULL
+- organization_id UUID NOT NULL FK organizations(id) ON DELETE CASCADE
+- user_id UUID FK users(id)
+- action TEXT NOT NULL
+- entity_type TEXT NOT NULL
+- entity_id UUID
+- metadata JSONB
+- created_at TIMESTAMPTZ DEFAULT now()
+- indexes on organization_id, user_id, entity_type
 
 ENDPOINTS TO IMPLEMENT:
-- none
+None
 
 KYSELY QUERY EXAMPLE:
 db.selectFrom('users').selectAll().execute()
 
 BUSINESS RULES:
-- Configure Kysely with Postgres dialect
-- DatabaseService must be injectable via DatabaseModule
-- All tables must include tenant_id and all queries must filter by tenant_id
-- Use UUID primary keys via uuid_generate_v4()
+- Kysely configured with PostgresDialect
+- Database connection provided via injectable provider
+- All queries must include tenant_id filtering
+- Use consistent module/provider pattern from existing code
 
 DONE WHEN:
 - App boots successfully
-- Database connection is established
-- users table exists with correct schema
+- Migration runs and all tables exist
+- Kysely can be injected and used in services
 
 CONSTRAINTS:
 - Use NestJS + Kysely + PostgreSQL only
@@ -124,4 +180,3 @@ CONSTRAINTS:
 - Add tenant_id to every table and filter every query by it
 - No explanations. No summaries. Only repository code changes.
 ---
-

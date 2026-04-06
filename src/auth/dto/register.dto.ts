@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsIn, IsOptional } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsIn, IsOptional, IsUUID } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -9,9 +9,12 @@ export class RegisterDto {
   password: string;
 
   @IsOptional()
-  @IsIn(['ADMIN', 'MANAGER', 'MEMBER'])
-  role?: 'ADMIN' | 'MANAGER' | 'MEMBER';
+  @IsIn(['Admin', 'ProjectManager', 'Member'])
+  role?: 'Admin' | 'ProjectManager' | 'Member';
 
   @IsString()
   tenant_id: string;
+
+  @IsUUID()
+  organization_id: string;
 }

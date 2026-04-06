@@ -12,6 +12,7 @@ export class AuditService {
     entityType: string,
     entityId: string,
     tenantId: string,
+    organizationId: string,
   ) {
     return this.db
       .insertInto('audit_logs')
@@ -22,6 +23,7 @@ export class AuditService {
         entity_type: entityType,
         entity_id: entityId,
         tenant_id: tenantId,
+        organization_id: organizationId,
       })
       .returningAll()
       .executeTakeFirstOrThrow();

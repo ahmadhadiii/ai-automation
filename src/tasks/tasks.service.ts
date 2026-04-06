@@ -8,7 +8,7 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 export class TasksService {
   constructor(private readonly db: DatabaseService) {}
 
-  async create(dto: CreateTaskDto, tenantId: string) {
+  async create(dto: CreateTaskDto, userId: string, tenantId: string) {
     const id = uuidv4();
     return this.db
       .insertInto('tasks')
@@ -16,9 +16,10 @@ export class TasksService {
         id,
         title: dto.title,
         description: dto.description || null,
-        status: dto.status || 'TODO',
+        status: dto.status || 'ToDo',
         project_id: dto.project_id,
         assignee_id: dto.assignee_id || null,
+        created_by: userId,
         tenant_id: tenantId,
       })
       .returningAll()

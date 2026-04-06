@@ -15,9 +15,9 @@ export class ProjectsService {
       .values({
         id,
         name: dto.name,
-        description: dto.description || null,
-        owner_id: userId,
-        status: 'ACTIVE',
+        organization_id: dto.organization_id,
+        created_by: userId,
+        status: 'Active',
         tenant_id: tenantId,
       })
       .returningAll()

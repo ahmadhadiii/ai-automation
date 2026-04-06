@@ -1,10 +1,13 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsUUID } from 'class-validator';
 
 export class CreateProjectDto {
   @IsString()
   name: string;
 
+  @IsUUID()
+  organization_id: string;
+
   @IsOptional()
-  @IsString()
-  description?: string;
+  @IsDateString()
+  deadline?: string;
 }

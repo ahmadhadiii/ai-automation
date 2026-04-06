@@ -9,8 +9,8 @@ export class CreateTaskDto {
   description?: string;
 
   @IsOptional()
-  @IsIn(['TODO', 'IN_PROGRESS', 'DONE'])
-  status?: 'TODO' | 'IN_PROGRESS' | 'DONE';
+  @IsIn(['ToDo', 'InProgress', 'Completed'])
+  status?: 'ToDo' | 'InProgress' | 'Completed';
 
   @IsUUID()
   project_id: string;

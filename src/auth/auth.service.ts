@@ -34,8 +34,9 @@ export class AuthService {
         id,
         email: dto.email,
         password_hash,
-        role: dto.role || 'MEMBER',
+        role: dto.role || 'Member',
         tenant_id: dto.tenant_id,
+        organization_id: dto.organization_id,
       })
       .returning(['id', 'email', 'role', 'tenant_id', 'created_at'])
       .executeTakeFirstOrThrow();
