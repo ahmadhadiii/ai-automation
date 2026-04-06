@@ -12,6 +12,7 @@ import { AttachmentsModule } from './attachments/attachments.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AuditModule } from './audit/audit.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { OrganizationsModule } from './organizations/organizations.module';
 import { JwtAuthGuard } from './auth/auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 
@@ -34,6 +35,7 @@ import { RolesGuard } from './auth/roles.guard';
     NotificationsModule,
     AuditModule,
     DashboardModule,
+    OrganizationsModule,
   ],
   providers: [
     {
