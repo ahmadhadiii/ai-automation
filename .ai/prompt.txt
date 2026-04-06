@@ -60,7 +60,7 @@ Stack:
 
 Task to implement:
 ---
-TASK: Database Foundation
+TASK: Database and Users Foundation
 
 FIRST: Read the following existing files before writing any code:
 - src/app.module.ts
@@ -72,25 +72,41 @@ Match the exact code style, Kysely query patterns, and module structure you find
 MODULES TO CREATE OR MODIFY:
 - src/database/database.module.ts
 - src/database/database.service.ts
+- src/database/types.ts
+- src/database/migrations/002_create_users.ts
+- src/users/users.module.ts
+- src/users/users.controller.ts
+- src/users/users.service.ts
+- src/users/dto/user-response.dto.ts
 - src/app.module.ts
 
 DATABASE CHANGES:
-- none
+Create table users with columns:
+- id UUID PRIMARY KEY
+- tenant_id UUID NOT NULL
+- email TEXT NOT NULL UNIQUE
+- password_hash TEXT NOT NULL
+- role TEXT NOT NULL
+- created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+
+Add index:
+- unique index on email
 
 ENDPOINTS TO IMPLEMENT:
-- none
+- GET /api/users — ADMIN — no body — response: [{ id: UUID, email: string, role: string, createdAt: string }]
 
 KYSELY QUERY EXAMPLE:
-db.selectFrom('organizations').selectAll().execute()
+db.selectFrom('users').select(['id','email','role','created_at']).execute()
 
 BUSINESS RULES:
-- Configure Kysely using PostgresDialect
-- DatabaseService must expose a singleton Kysely instance
-- Use dependency injection via DatabaseModule
-- Ensure connection is initialized on app bootstrap
+- Must never return password_hash
+- Only ADMIN can access endpoint
+- All queries must filter by tenant_id
+- Map created_at → createdAt in response
 
 DONE WHEN:
-- Application boots successfully and connects to the PostgreSQL database
+- users table exists
+- GET /api/users returns list of users without password_hash
 
 CONSTRAINTS:
 - Use NestJS + Kysely + PostgreSQL only
