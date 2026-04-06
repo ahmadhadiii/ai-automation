@@ -11,6 +11,7 @@ src/auth/auth.service.ts
 src/auth/dto/login.dto.ts
 src/auth/dto/register.dto.ts
 src/auth/jwt.strategy.ts
+src/auth/public.decorator.ts
 src/auth/roles.decorator.ts
 src/auth/roles.guard.ts
 src/comments/comments.module.ts
@@ -19,6 +20,8 @@ src/dashboard/dashboard.module.ts
 src/dashboard/dashboard.service.ts
 src/database/database.module.ts
 src/database/database.service.ts
+src/database/database.types.ts
+src/database/kysely.module.ts
 src/database/kysely.provider.ts
 src/database/migrate.ts
 src/database/migrations/001_init.sql
@@ -88,8 +91,8 @@ Match the exact code style, Kysely patterns, and module structure you find there
 TASK: Infrastructure and Database Setup
 
 MODULES TO CREATE OR MODIFY:
-- src/database/kysely.module.ts
-- src/database/database.types.ts
+- src/database/database.module.ts
+- src/database/database.service.ts
 - src/app.module.ts
 - src/main.ts
 
@@ -103,24 +106,28 @@ ROLE RESTRICTIONS:
 - none
 
 KYSELY PATTERN TO FOLLOW:
-- db.selectFrom('users').selectAll().execute()
+new Kysely<Database>({ dialect: new PostgresDialect({ pool }) })
 
 BUSINESS RULES:
-- Configure Kysely with PostgreSQL dialect using existing DatabaseService patterns
-- Ensure KyselyModule exports database connection for injection
-- Register global ThrottlerModule
-- Ensure app module imports KyselyModule and ThrottlerModule
+- Initialize a singleton Kysely instance using PostgresDialect and pg Pool
+- Read DB connection config from environment variables
+- Export DatabaseService that provides the Kysely instance
+- Register DatabaseModule globally or import into AppModule
+- Ensure application boots only after DB is ready
 
 SECURITY REQUIREMENTS:
-- Enable CORS in main.ts with origin from env, credentials true, methods GET,HEAD,PUT,PATCH,POST,DELETE
-- Apply global JwtAuthGuard except for public auth routes (structure only, guard already exists)
-- Ensure compatibility with RolesGuard
+- Enable CORS in main.ts with:
+  origin from env
+  credentials true
+  methods GET,POST,PUT,PATCH,DELETE
+  allowedHeaders Authorization,Content-Type
+- Apply global ValidationPipe with whitelist and transform enabled
 
 DONE WHEN:
-- Application boots without errors
-- Database connection is established via Kysely
-- CORS is enabled
-- Global throttling is active
+- Application starts without errors
+- Database connection is successfully established
+- Kysely instance is injectable across modules
+- CORS works as configured
 
 HARD CONSTRAINTS:
 - Role values are EXACTLY: Admin, HRManager, Member — never ADMIN, never all caps
