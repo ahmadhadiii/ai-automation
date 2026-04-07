@@ -1,15 +1,17 @@
 import { Kysely, sql } from 'kysely';
 
 export async function up(db: Kysely<any>): Promise<void> {
+  await sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`.execute(db);
+
   // Organizations
   await db.schema
     .createTable('organizations')
     .addColumn('id', 'uuid', (col) =>
-      col.primaryKey().defaultTo(sql`gen_random_uuid()`),
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
     )
     .addColumn('tenant_id', 'uuid', (col) => col.notNull())
-    .addColumn('name', 'varchar', (col) => col.notNull())
-    .addColumn('created_at', 'timestamp', (col) =>
+    .addColumn('name', sql`varchar(150)`, (col) => col.notNull().unique())
+    .addColumn('created_at', sql`timestamptz`, (col) =>
       col.notNull().defaultTo(sql`now()`),
     )
     .execute();
@@ -18,7 +20,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable('users')
     .addColumn('id', 'uuid', (col) =>
-      col.primaryKey().defaultTo(sql`gen_random_uuid()`),
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
     )
     .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('organization_id', 'uuid', (col) => col.notNull())
@@ -30,10 +32,10 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('is_active', 'boolean', (col) =>
       col.notNull().defaultTo(true),
     )
-    .addColumn('created_at', 'timestamp', (col) =>
+    .addColumn('created_at', sql`timestamptz`, (col) =>
       col.notNull().defaultTo(sql`now()`),
     )
-    .addColumn('updated_at', 'timestamp', (col) =>
+    .addColumn('updated_at', sql`timestamptz`, (col) =>
       col.notNull().defaultTo(sql`now()`),
     )
     .addForeignKeyConstraint(
@@ -51,7 +53,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable('projects')
     .addColumn('id', 'uuid', (col) =>
-      col.primaryKey().defaultTo(sql`gen_random_uuid()`),
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
     )
     .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('organization_id', 'uuid', (col) => col.notNull())
@@ -60,10 +62,10 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('deadline', 'varchar')
     .addColumn('status', 'varchar', (col) => col.notNull().defaultTo('Active'))
     .addColumn('created_by', 'uuid', (col) => col.notNull())
-    .addColumn('created_at', 'timestamp', (col) =>
+    .addColumn('created_at', sql`timestamptz`, (col) =>
       col.notNull().defaultTo(sql`now()`),
     )
-    .addColumn('updated_at', 'timestamp', (col) =>
+    .addColumn('updated_at', sql`timestamptz`, (col) =>
       col.notNull().defaultTo(sql`now()`),
     )
     .addForeignKeyConstraint(
@@ -89,7 +91,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable('tasks')
     .addColumn('id', 'uuid', (col) =>
-      col.primaryKey().defaultTo(sql`gen_random_uuid()`),
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
     )
     .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('project_id', 'uuid', (col) => col.notNull())
@@ -100,10 +102,10 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('priority', 'varchar')
     .addColumn('due_date', 'varchar')
     .addColumn('created_by', 'uuid', (col) => col.notNull())
-    .addColumn('created_at', 'timestamp', (col) =>
+    .addColumn('created_at', sql`timestamptz`, (col) =>
       col.notNull().defaultTo(sql`now()`),
     )
-    .addColumn('updated_at', 'timestamp', (col) =>
+    .addColumn('updated_at', sql`timestamptz`, (col) =>
       col.notNull().defaultTo(sql`now()`),
     )
     .addForeignKeyConstraint(
@@ -118,7 +120,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['assignee_id'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('set null'),
+      (cb) => cb.onDelete('restrict'),
     )
     .execute();
 
@@ -128,13 +130,13 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable('comments')
     .addColumn('id', 'uuid', (col) =>
-      col.primaryKey().defaultTo(sql`gen_random_uuid()`),
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
     )
     .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('task_id', 'uuid', (col) => col.notNull())
     .addColumn('user_id', 'uuid', (col) => col.notNull())
     .addColumn('content', 'varchar', (col) => col.notNull())
-    .addColumn('created_at', 'timestamp', (col) =>
+    .addColumn('created_at', sql`timestamptz`, (col) =>
       col.notNull().defaultTo(sql`now()`),
     )
     .addForeignKeyConstraint(
@@ -157,7 +159,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable('attachments')
     .addColumn('id', 'uuid', (col) =>
-      col.primaryKey().defaultTo(sql`gen_random_uuid()`),
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
     )
     .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('task_id', 'uuid', (col) => col.notNull())
@@ -165,7 +167,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('file_name', 'varchar', (col) => col.notNull())
     .addColumn('file_path', 'varchar', (col) => col.notNull())
     .addColumn('file_size', 'integer', (col) => col.notNull())
-    .addColumn('created_at', 'timestamp', (col) =>
+    .addColumn('created_at', sql`timestamptz`, (col) =>
       col.notNull().defaultTo(sql`now()`),
     )
     .addForeignKeyConstraint(
@@ -188,7 +190,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable('notifications')
     .addColumn('id', 'uuid', (col) =>
-      col.primaryKey().defaultTo(sql`gen_random_uuid()`),
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
     )
     .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('user_id', 'uuid', (col) => col.notNull())
@@ -197,7 +199,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('read', 'boolean', (col) => col.notNull().defaultTo(false))
     .addColumn('entity_type', 'varchar')
     .addColumn('entity_id', 'uuid')
-    .addColumn('created_at', 'timestamp', (col) =>
+    .addColumn('created_at', sql`timestamptz`, (col) =>
       col.notNull().defaultTo(sql`now()`),
     )
     .addForeignKeyConstraint(
@@ -213,7 +215,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable('audit_logs')
     .addColumn('id', 'uuid', (col) =>
-      col.primaryKey().defaultTo(sql`gen_random_uuid()`),
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
     )
     .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('organization_id', 'uuid', (col) => col.notNull())
@@ -222,7 +224,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('entity_type', 'varchar', (col) => col.notNull())
     .addColumn('entity_id', 'uuid')
     .addColumn('metadata', 'jsonb')
-    .addColumn('created_at', 'timestamp', (col) =>
+    .addColumn('created_at', sql`timestamptz`, (col) =>
       col.notNull().defaultTo(sql`now()`),
     )
     .addForeignKeyConstraint(
@@ -238,13 +240,13 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable('refresh_tokens')
     .addColumn('id', 'uuid', (col) =>
-      col.primaryKey().defaultTo(sql`gen_random_uuid()`),
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
     )
     .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('user_id', 'uuid', (col) => col.notNull())
     .addColumn('token', 'varchar', (col) => col.notNull())
-    .addColumn('expires_at', 'timestamp', (col) => col.notNull())
-    .addColumn('created_at', 'timestamp', (col) =>
+    .addColumn('expires_at', sql`timestamptz`, (col) => col.notNull())
+    .addColumn('created_at', sql`timestamptz`, (col) =>
       col.notNull().defaultTo(sql`now()`),
     )
     .addForeignKeyConstraint(
@@ -258,7 +260,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 
   // Indexes
   await db.schema
-    .createIndex('idx_users_tenant')
+    .createIndex('idx_users_tenant_id')
     .on('users')
     .column('tenant_id')
     .execute();
@@ -270,39 +272,27 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_projects_tenant')
+    .createIndex('idx_projects_tenant_id')
     .on('projects')
     .column('tenant_id')
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_tenant')
+    .createIndex('idx_tasks_tenant_id')
     .on('tasks')
     .column('tenant_id')
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_project')
+    .createIndex('idx_tasks_project_id')
     .on('tasks')
     .column('project_id')
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_assignee')
+    .createIndex('idx_tasks_assigned_to')
     .on('tasks')
     .column('assignee_id')
-    .execute();
-
-  await db.schema
-    .createIndex('idx_comments_tenant')
-    .on('comments')
-    .column('tenant_id')
-    .execute();
-
-  await db.schema
-    .createIndex('idx_comments_task')
-    .on('comments')
-    .column('task_id')
     .execute();
 }
 
