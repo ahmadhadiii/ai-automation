@@ -1,5 +1,5 @@
 === COMPLETED STORIES ===
-Stories already implemented: 1
+Stories already implemented: 1, 2
 Do NOT re-implement these. Build on top of existing code.
 
 === CURRENT REPO FILE TREE ===
@@ -156,138 +156,117 @@ export class AppModule {}
 --- src/database/types.ts ---
 import { Generated } from 'kysely';
 
-export interface UserTable {
+export interface Database {
+  organizations: OrganizationsTable;
+  users: UsersTable;
+  projects: ProjectsTable;
+  tasks: TasksTable;
+  comments: CommentsTable;
+  attachments: AttachmentsTable;
+  notifications: NotificationsTable;
+  audit_logs: AuditLogsTable;
+  refresh_tokens: RefreshTokensTable;
+}
+
+export interface OrganizationsTable {
   id: Generated<string>;
+  tenant_id: string;
+  name: string;
+  created_at: Generated<Date>;
+}
+
+export interface UsersTable {
+  id: Generated<string>;
+  tenant_id: string;
+  organization_id: string;
   email: string;
   password_hash: string;
-  first_name: string | null;
-  last_name: string | null;
+  first_name: string;
+  last_name: string;
   role: string;
   is_active: Generated<boolean>;
-  tenant_id: string;
-  organization_id: string;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
 
-export interface OrganizationTable {
+export interface ProjectsTable {
   id: Generated<string>;
-  name: string;
   tenant_id: string;
-  created_at: Generated<Date>;
-  updated_at: Generated<Date>;
-}
-
-export interface OrganizationMemberTable {
-  id: Generated<string>;
-  organization_id: string;
-  user_id: string;
-  role: 'Admin' | 'ProjectManager' | 'Member';
-  tenant_id: string;
-  created_at: Generated<Date>;
-}
-
-export interface ProjectTable {
-  id: Generated<string>;
   organization_id: string;
   name: string;
   description: string | null;
-  status: 'Active' | 'Archived';
+  deadline: string | null;
+  status: string;
   created_by: string;
-  tenant_id: string;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
 
-export interface TaskTable {
+export interface TasksTable {
   id: Generated<string>;
+  tenant_id: string;
   project_id: string;
-  organization_id: string;
+  assignee_id: string | null;
   title: string;
   description: string | null;
-  status: 'ToDo' | 'InProgress' | 'Completed';
-  assignee_id: string | null;
+  status: string;
+  priority: string | null;
+  due_date: string | null;
   created_by: string;
-  due_date: Date | null;
-  tenant_id: string;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
 
-export interface CommentTable {
+export interface CommentsTable {
   id: Generated<string>;
+  tenant_id: string;
   task_id: string;
   user_id: string;
-  organization_id: string;
   content: string;
-  tenant_id: string;
   created_at: Generated<Date>;
 }
 
-export interface AttachmentTable {
+export interface AttachmentsTable {
   id: Generated<string>;
+  tenant_id: string;
   task_id: string;
   uploaded_by: string;
-  organization_id: string;
   file_name: string;
-  file_url: string;
-  tenant_id: string;
+  file_path: string;
+  file_size: number;
   created_at: Generated<Date>;
 }
 
-export interface NotificationTable {
+export interface NotificationsTable {
   id: Generated<string>;
+  tenant_id: string;
   user_id: string;
-  organization_id: string;
   type: string;
   message: string;
-  is_read: boolean;
-  tenant_id: string;
+  read: Generated<boolean>;
+  entity_type: string | null;
+  entity_id: string | null;
   created_at: Generated<Date>;
 }
 
-export interface AuditLogTable {
+export interface AuditLogsTable {
   id: Generated<string>;
+  tenant_id: string;
   organization_id: string;
-  user_id: string;
+  user_id: string | null;
   action: string;
   entity_type: string;
-  entity_id: string;
-  metadata: unknown;
-  tenant_id: string;
+  entity_id: string | null;
+  metadata: any | null;
   created_at: Generated<Date>;
 }
 
 export interface RefreshTokensTable {
   id: Generated<string>;
   user_id: string;
-  token_hash: string;
+  token: string;
   expires_at: Date;
-  tenant_id: string;
   created_at: Generated<Date>;
-}
-
-export interface ProjectMembersTable {
-  id: Generated<string>;
-  project_id: string;
-  user_id: string;
-  role: string;
-  tenant_id: string;
-  created_at: Generated<Date>;
-}
-
-export interface Database {
-  users: UserTable;
-  organizations: OrganizationTable;
-  organization_members: OrganizationMemberTable;
-  projects: ProjectTable;
-  tasks: TaskTable;
-  comments: CommentTable;
-  attachments: AttachmentTable;
-  notifications: NotificationTable;
-  audit_logs: AuditLogTable;
-  refresh_tokens: RefreshTokensTable;
-  project_members: ProjectMembersTable;
 }
 
 
@@ -511,7 +490,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException();
     }
 
-    return user;
+    return {
+      id: payload.sub,
+      email: payload.email,
+      role: payload.role,
+      tenant_id: payload.tenant_id,
+    };
   }
 }
 
@@ -600,431 +584,267 @@ BEFORE implementing the story, fix these bugs in existing files:
 THEN implement the story task below.
 
 Task:
-# ARCHITECTURE.md
-> This file is the single source of truth for all implementation decisions.
-> Claude Code MUST read this entire file before writing any code.
+DIRECT AGENT INSTRUCTION:
 
-## STACK
-- Framework: NestJS 10
-- Query Builder: Kysely 0.27
-- Database: PostgreSQL
-- Auth: JWT (@nestjs/jwt, @nestjs/passport, passport-jwt)
-- Validation: class-validator, class-transformer
-- Password: bcrypt (12 rounds)
-- IDs: uuid v4
-- Port: 3001
-- Global prefix: /api
+You are Claude Code operating inside a real git repository.
+Stack: NestJS 10 + Kysely 0.27 + PostgreSQL
+You have full access to read, create, modify files and run shell commands.
+Do not explain. Do not produce markdown. Only make file changes and run commands.
 
-## PROJECT STRUCTURE
-src/
-  app.module.ts
-  main.ts
+PHASE 1 — READ FIRST (mandatory, do not skip)
+Read these files completely before writing any code:
+1. ARCHITECTURE.md — your law. Follow every pattern exactly.
+2. src/app.module.ts
+3. src/database/types.ts
+4. src/database/database.service.ts
+5. src/auth/auth.guard.ts
+6. src/auth/jwt.strategy.ts
+7. src/auth/public.decorator.ts
+8. src/auth/roles.decorator.ts
+If any file does not exist yet, skip it and continue.
 
-  database/
-    database.module.ts
-    database.service.ts
-    types.ts
-    migrate.ts
-    migrations/
-      001_initial.ts
+PHASE 2 — APPLY BUG FIXES (scan all existing files, fix silently)
+FIX 1: req.user.sub to req.user.id in ALL controllers
+FIX 2: Remove ALL @UseGuards() from ALL controllers
+FIX 3: @Roles('ADMIN') to @Roles('Admin') everywhere
+FIX 4: Remove role field from src/auth/dto/register.dto.ts if present
+FIX 5: In auth.service.ts hardcode role: 'Member' instead of dto.role
+FIX 6: Delete src/modules/database/ if it exists
+FIX 7: Delete src/database/kysely.module.ts if it exists
+FIX 8: Delete src/database/database.types.ts if it exists
+FIX 9: Remove KyselyModule from app.module.ts imports if present
+FIX 10: In ALL services replace .select(['col1','col2']) with .selectAll()
+FIX 11: In types.ts make tenant_id plain string on EVERY table interface
+FIX 12: In types.ts Generated<> only on id, created_at, updated_at, is_active, read
+FIX 13: In tasks files replace 'TODO' with 'ToDo', 'IN_PROGRESS' with 'InProgress', 'DONE' with 'Completed'
+FIX 14: Make sure TasksTable has assignee_id: string | null
 
-  auth/
-    auth.module.ts
-    auth.controller.ts
-    auth.service.ts
-    jwt.strategy.ts
-    jwt-auth.guard.ts
-    roles.guard.ts
-    decorators/
-      public.decorator.ts
-      roles.decorator.ts
-    dto/
-      register.dto.ts
-      login.dto.ts
-      refresh-token.dto.ts
+PHASE 3 — ARCHITECTURE RULES (follow exactly)
 
-  organizations/
-    organizations.module.ts
-    organizations.controller.ts
-    organizations.service.ts
-    dto/
-      create-organization.dto.ts
+GLOBAL GUARDS:
+Guards are registered globally via APP_GUARD in app.module.ts.
+NEVER add @UseGuards() to any controller or method — not even once.
 
-  users/
-    users.module.ts
-    users.controller.ts
-    users.service.ts
-    dto/
-      create-user.dto.ts
+AUTHENTICATION:
+JWT Payload into token: { sub: userId, email, role, tenant_id }
+req.user after validation: { id, email, role, tenant_id }
+ALWAYS use req.user.id — NEVER use req.user.sub
+jwt.strategy.ts validate() must return exactly:
+  return { id: payload.sub, email: payload.email, role: payload.role, tenant_id: payload.tenant_id }
 
-  projects/
-    projects.module.ts
-    projects.controller.ts
-    projects.service.ts
-    dto/
-      create-project.dto.ts
-      update-project.dto.ts
-
-  tasks/
-    tasks.module.ts
-    tasks.controller.ts
-    tasks.service.ts
-    dto/
-      create-task.dto.ts
-      update-task.dto.ts
-
-  dashboard/
-    dashboard.module.ts
-    dashboard.controller.ts
-    dashboard.service.ts
-
-  notifications/
-    notifications.module.ts
-    notifications.controller.ts
-    notifications.service.ts
-
-  audit/
-    audit.module.ts
-    audit.controller.ts
-    audit.service.ts
-
-## GLOBAL GUARDS — CRITICAL
-Guards are registered globally via APP_GUARD in app.module.ts:
-{
-  provide: APP_GUARD,
-  useClass: JwtAuthGuard,
-},
-{
-  provide: APP_GUARD,
-  useClass: RolesGuard,
-}
-
-CONSEQUENCE: NEVER add @UseGuards() to any controller or method.
-Adding @UseGuards() on a controller will cause double-guard execution and authentication bugs.
-
-## AUTHENTICATION
-
-### JWT Payload (what goes INTO the token):
-{ sub: userId, email: string, role: string, tenant_id: string }
-
-### req.user (what comes OUT after validation — set by jwt.strategy.ts):
-{ id: string, email: string, role: string, tenant_id: string }
-
-### CRITICAL: ALWAYS use req.user.id — NEVER use req.user.sub
-req.user.sub does not exist. jwt.strategy.ts validate() maps sub → id.
-
-### jwt.strategy.ts validate() must return exactly:
-return {
-  id: payload.sub,
-  email: payload.email,
-  role: payload.role,
-  tenant_id: payload.tenant_id,
-};
-
-## DECORATORS
-- @Public() — marks a route as unauthenticated (bypasses JwtAuthGuard)
-- @Roles('Admin') — restricts route to Admin role only
-- @Roles('Admin', 'ProjectManager') — restricts to multiple roles
-
-## ROLE VALUES — exact casing, no exceptions
-- 'Admin'
-- 'ProjectManager'  
-- 'Member'
+ROLE VALUES — exact casing:
+'Admin' | 'ProjectManager' | 'Member'
 WRONG: 'ADMIN', 'admin', 'MEMBER'
 
-## STATUS VALUES — exact casing, no exceptions
-- Task: 'ToDo' | 'InProgress' | 'Completed'
-- Project: 'Active' | 'Archived'
+STATUS VALUES — exact casing:
+Task: 'ToDo' | 'InProgress' | 'Completed'
+Project: 'Active' | 'Archived'
 WRONG: 'TODO', 'IN_PROGRESS', 'DONE'
 
-## REGISTRATION RULE
-Register endpoint NEVER accepts role from request body.
-Role is hardcoded as 'Member' in auth.service.ts:
-role: 'Member', // NEVER dto.role
+REGISTRATION RULE:
+Register endpoint NEVER accepts role from body. Hardcode: role: 'Member'
 
-## KYSELY SELECT RULES
+KYSELY SELECT RULES:
+NEVER: .select(['id', 'email']) — Kysely rejects arrays
+CORRECT: .selectAll()
+CORRECT: .select('id').select('email')
 
-NEVER use .select() with a string array:
-  .select(['id', 'email', 'role'])   ← WRONG — TypeScript error
-
-CORRECT patterns:
-  .selectAll()                        ← preferred
-  .select('id').select('email')       ← for specific columns
-  .select('users.id')                 ← with table prefix for joins
-
-## KYSELY Generated<T> RULES
-
-Generated<T> = database generates this value via DEFAULT.
-Use Generated<> ONLY for these columns:
-  id              → Generated<string>   (DEFAULT uuid_generate_v4())
-  created_at      → Generated<Date>     (DEFAULT now())
-  updated_at      → Generated<Date>     (DEFAULT now())
-  is_active       → Generated<boolean>  (DEFAULT true)
-  read            → Generated<boolean>  (DEFAULT false)
-
+KYSELY Generated<T> RULES:
+Generated<> ONLY for: id, created_at, updated_at, is_active, read
 Everything else is plain string or string | null:
-  tenant_id       → string
-  email           → string
-  role            → string
-  organization_id → string
-  created_by      → string
-  assignee_id     → string | null
-  description     → string | null
-  due_date        → string | null
+  tenant_id        → string (never Generated)
+  email            → string
+  role             → string
+  organization_id  → string
+  created_by       → string
+  assignee_id      → string | null
+  description      → string | null
+  due_date         → string | null
+  deadline         → string | null
 
-THE RULE: If you write the value in .values({...}) during INSERT, it is plain string.
-
-## COMPLETE types.ts
-```typescript
+COMPLETE types.ts — use this exact content:
 import { Generated } from 'kysely';
-
 export interface Database {
   organizations: OrganizationsTable;
   users: UsersTable;
   projects: ProjectsTable;
   tasks: TasksTable;
+  comments: CommentsTable;
+  attachments: AttachmentsTable;
+  notifications: NotificationsTable;
   audit_logs: AuditLogsTable;
+  refresh_tokens: RefreshTokensTable;
 }
-
 export interface OrganizationsTable {
   id: Generated<string>;
+  tenant_id: string;
   name: string;
   created_at: Generated<Date>;
 }
-
 export interface UsersTable {
   id: Generated<string>;
   tenant_id: string;
+  organization_id: string;
   email: string;
-  password: string;
+  password_hash: string;
   first_name: string;
   last_name: string;
   role: string;
+  is_active: Generated<boolean>;
   created_at: Generated<Date>;
+  updated_at: Generated<Date>;
 }
-
 export interface ProjectsTable {
   id: Generated<string>;
   tenant_id: string;
+  organization_id: string;
   name: string;
   description: string | null;
+  deadline: string | null;
   status: string;
+  created_by: string;
   created_at: Generated<Date>;
+  updated_at: Generated<Date>;
 }
-
 export interface TasksTable {
   id: Generated<string>;
   tenant_id: string;
   project_id: string;
+  assignee_id: string | null;
   title: string;
   description: string | null;
   status: string;
-  assignee_id: string | null;
+  priority: string | null;
+  due_date: string | null;
+  created_by: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+export interface CommentsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  task_id: string;
+  user_id: string;
+  content: string;
   created_at: Generated<Date>;
 }
-
-export interface AuditLogsTable {
+export interface AttachmentsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  task_id: string;
+  uploaded_by: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  created_at: Generated<Date>;
+}
+export interface NotificationsTable {
   id: Generated<string>;
   tenant_id: string;
   user_id: string;
-  action: string;
-  entity: string;
-  entity_id: string;
+  type: string;
+  message: string;
+  read: Generated<boolean>;
+  entity_type: string | null;
+  entity_id: string | null;
   created_at: Generated<Date>;
 }
-```
+export interface AuditLogsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  organization_id: string;
+  user_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  metadata: any | null;
+  created_at: Generated<Date>;
+}
+export interface RefreshTokensTable {
+  id: Generated<string>;
+  user_id: string;
+  token: string;
+  expires_at: Date;
+  created_at: Generated<Date>;
+}
 
-## DATABASE PATTERNS
+DATABASE PATTERNS:
+SELECT with pagination:
+  const page = Number(query.page) || 1;
+  const limit = Math.min(Number(query.limit) || 20, 100);
+  const offset = (page - 1) * limit;
+  const [{ count }] = await this.db.selectFrom('table').select(this.db.fn.count('id').as('count')).where('tenant_id', '=', tenantId).execute();
+  const data = await this.db.selectFrom('table').selectAll().where('tenant_id', '=', tenantId).orderBy('created_at', 'desc').limit(limit).offset(offset).execute();
+  return { data, meta: { total: Number(count), page, limit, totalPages: Math.ceil(Number(count) / limit) } };
 
-### SELECT with pagination (use this exact pattern):
-```typescript
-const page = Number(query.page) || 1;
-const limit = Math.min(Number(query.limit) || 20, 100);
-const offset = (page - 1) * limit;
+INSERT:
+  const record = await this.db.insertInto('table').values({ id: uuidv4(), tenant_id: tenantId, ...dto }).returningAll().executeTakeFirstOrThrow();
 
-const [{ count }] = await this.db
-  .selectFrom('table_name')
-  .select(this.db.fn.count('id').as('count'))
-  .where('tenant_id', '=', tenantId)
-  .execute();
+UPDATE:
+  const record = await this.db.updateTable('table').set({ ...dto, updated_at: new Date() }).where('id', '=', id).where('tenant_id', '=', tenantId).returningAll().executeTakeFirst();
+  if (!record) throw new NotFoundException('Not found');
 
-const data = await this.db
-  .selectFrom('table_name')
-  .selectAll()
-  .where('tenant_id', '=', tenantId)
-  .orderBy('created_at', 'desc')
-  .limit(limit)
-  .offset(offset)
-  .execute();
+DELETE:
+  const result = await this.db.deleteFrom('table').where('id', '=', id).where('tenant_id', '=', tenantId).executeTakeFirst();
+  if (!result.numDeletedRows) throw new NotFoundException('Not found');
 
-return {
-  data,
-  meta: {
-    total: Number(count),
-    page,
-    limit,
-    totalPages: Math.ceil(Number(count) / limit),
-  },
-};
-```
+SELECT ONE:
+  const record = await this.db.selectFrom('table').selectAll().where('id', '=', id).where('tenant_id', '=', tenantId).executeTakeFirst();
+  if (!record) throw new NotFoundException('Not found');
 
-### INSERT:
-```typescript
-import { v4 as uuidv4 } from 'uuid';
-
-const record = await this.db
-  .insertInto('table_name')
-  .values({
-    id: uuidv4(),
-    tenant_id: tenantId,
-  })
-  .returningAll()
-  .executeTakeFirstOrThrow();
-```
-
-### UPDATE:
-```typescript
-const record = await this.db
-  .updateTable('table_name')
-  .set({ field: value })
-  .where('id', '=', id)
-  .where('tenant_id', '=', tenantId)
-  .returningAll()
-  .executeTakeFirst();
-
-if (!record) throw new NotFoundException('Resource not found');
-```
-
-### DELETE:
-```typescript
-const result = await this.db
-  .deleteFrom('table_name')
-  .where('id', '=', id)
-  .where('tenant_id', '=', tenantId)
-  .executeTakeFirst();
-
-if (!result.numDeletedRows) throw new NotFoundException('Resource not found');
-```
-
-### SELECT ONE:
-```typescript
-const record = await this.db
-  .selectFrom('table_name')
-  .selectAll()
-  .where('id', '=', id)
-  .where('tenant_id', '=', tenantId)
-  .executeTakeFirst();
-
-if (!record) throw new NotFoundException('Resource not found');
-```
-
-## CONTROLLER PATTERN
-```typescript
-import { Controller, Get, Post, Put, Delete, Param, Query, Body, Request, HttpCode, HttpStatus } from '@nestjs/common';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { Public } from '../auth/decorators/public.decorator';
-
-@Controller('resource-name')
+CONTROLLER PATTERN — NO @UseGuards() anywhere:
+@Controller('resource')
 export class ResourceController {
-  constructor(private readonly resourceService: ResourceService) {}
-
-  @Get()
-  findAll(@Request() req, @Query() query) {
-    return this.resourceService.findAll(req.user.tenant_id, query);
-  }
-
-  @Post()
-  @HttpCode(HttpStatus.CREATED)
-  create(@Request() req, @Body() dto) {
-    return this.resourceService.create(req.user.id, req.user.tenant_id, dto);
-  }
-
-  @Get(':id')
-  findOne(@Request() req, @Param('id') id: string) {
-    return this.resourceService.findOne(id, req.user.tenant_id);
-  }
-
-  @Put(':id')
-  update(@Request() req, @Param('id') id: string, @Body() dto) {
-    return this.resourceService.update(id, req.user.tenant_id, dto);
-  }
-
-  @Delete(':id')
-  @Roles('Admin')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Request() req, @Param('id') id: string) {
-    return this.resourceService.remove(id, req.user.tenant_id);
-  }
+  constructor(private readonly service: ResourceService) {}
+  @Get() findAll(@Request() req, @Query() query: any) { return this.service.findAll(req.user.tenant_id, query); }
+  @Post() @HttpCode(HttpStatus.CREATED) create(@Request() req, @Body() dto: CreateDto) { return this.service.create(req.user.id, req.user.tenant_id, dto); }
+  @Get(':id') findOne(@Request() req, @Param('id') id: string) { return this.service.findOne(id, req.user.tenant_id); }
+  @Put(':id') update(@Request() req, @Param('id') id: string, @Body() dto: UpdateDto) { return this.service.update(id, req.user.tenant_id, dto); }
+  @Delete(':id') @Roles('Admin') @HttpCode(HttpStatus.NO_CONTENT) remove(@Request() req, @Param('id') id: string) { return this.service.remove(id, req.user.tenant_id); }
 }
-```
 
-## DTO PATTERN
-```typescript
-import { IsString, IsEmail, IsNotEmpty, IsOptional, IsUUID, IsIn } from 'class-validator';
-
-export class CreateResourceDto {
-  @IsString()
-  @IsNotEmpty()
-  name: string;
-
-  @IsString()
-  @IsOptional()
-  description?: string;
-
-  @IsIn(['ToDo', 'InProgress', 'Completed'])
-  @IsOptional()
-  status?: string;
-}
-```
-
-## MODULE PATTERN
-```typescript
-import { Module } from '@nestjs/common';
-
+MODULE PATTERN:
 @Module({
   controllers: [ResourceController],
   providers: [ResourceService],
   exports: [ResourceService],
 })
 export class ResourceModule {}
-```
 
-## app.module.ts PATTERN
-```typescript
-@Module({
-  imports: [
-    DatabaseModule,
-    AuthModule,
-    OrganizationsModule,
-    UsersModule,
-    ProjectsModule,
-    TasksModule,
-    DashboardModule,
-    NotificationsModule,
-    AuditModule,
-  ],
-  providers: [
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: RolesGuard },
-  ],
-})
-export class AppModule {}
-```
+FILES THAT MUST NEVER BE DUPLICATED:
+Only ONE DatabaseModule: src/database/database.module.ts
+Only ONE types.ts: src/database/types.ts
+NEVER create: src/modules/database/, src/database/kysely.module.ts, src/database/database.types.ts
 
-## FILES THAT MUST NEVER BE DUPLICATED
-- Only ONE DatabaseModule: src/database/database.module.ts
-- Only ONE types.ts: src/database/types.ts
-- Only ONE app.module.ts: src/app.module.ts
+ABSOLUTE RULES — VIOLATION MEANS FAILURE:
+1. NEVER add @UseGuards() to any controller
+2. Use @Public() for unauthenticated routes
+3. Use req.user.id never req.user.sub
+4. EVERY query must filter by tenant_id
+5. Use uuidv4() for all IDs
+6. All list endpoints return { data, meta: { total, page, limit, totalPages } }
+7. Register hardcodes role: 'Member'
+8. Task status: 'ToDo', 'InProgress', 'Completed'
+9. Project status: 'Active', 'Archived'
+10. Roles: 'Admin', 'ProjectManager', 'Member'
+11. Every new module added to app.module.ts imports[]
+12. NEVER .select(['col1','col2']) — use .selectAll()
+13. EVERY table interface has tenant_id: string
 
-## ADDING A NEW MODULE — CHECKLIST
-1. Create module folder and files
-2. Controller WITHOUT @UseGuards()
-3. Service uses DatabaseService
-4. DTOs created
-5. Every query filters tenant_id
-6. Pagination format enforced
-7. Module added to app.module.ts
+PHASE 4 — IMPLEMENT THE STORY
+Read the STORY TO IMPLEMENT at the top carefully.
+Implement every file in files_to_create.
+Modify every file in files_to_modify.
+Meet every acceptance criterion before proceeding.
 
-## VERIFICATION BEFORE EVERY COMMIT
-Run: npx tsc --noEmit  
-Zero errors required.
+PHASE 5 — VERIFY BUILD
+Run: npx tsc --noEmit
+Fix all errors. Never use @ts-ignore. Repeat until zero errors.
+
+PHASE 6 — COMMIT AND PUSH
+  git add -A
+  git commit -m "feat: story-[story_number] [title]"
+  git push origin HEAD
+
+After push output exactly:
+=== STORY [story_number] COMPLETE ===

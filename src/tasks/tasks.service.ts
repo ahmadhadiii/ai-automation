@@ -28,9 +28,10 @@ export class TasksService {
         title: dto.title,
         description: dto.description || null,
         status: dto.status || 'ToDo',
+        priority: null,
         project_id: dto.project_id,
-        organization_id: project.organization_id,
         assignee_id: dto.assignee_id || null,
+        due_date: dto.due_date || null,
         created_by: userId,
         tenant_id: tenantId,
       })

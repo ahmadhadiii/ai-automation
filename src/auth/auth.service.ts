@@ -34,6 +34,8 @@ export class AuthService {
         id,
         email: dto.email,
         password_hash,
+        first_name: dto.first_name || '',
+        last_name: dto.last_name || '',
         role: 'Member',
         tenant_id: dto.tenant_id,
         organization_id: dto.organization_id,

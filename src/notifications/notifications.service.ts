@@ -19,7 +19,7 @@ export class NotificationsService {
   async markAsRead(id: string, userId: string, tenantId: string) {
     const notification = await this.db
       .updateTable('notifications')
-      .set({ is_read: true })
+      .set({ read: true })
       .where('id', '=', id)
       .where('user_id', '=', userId)
       .where('tenant_id', '=', tenantId)
@@ -35,21 +35,22 @@ export class NotificationsService {
 
   async create(
     userId: string,
-    organizationId: string,
     type: string,
     message: string,
     tenantId: string,
+    entityType?: string,
+    entityId?: string,
   ) {
     return this.db
       .insertInto('notifications')
       .values({
         id: uuidv4(),
         user_id: userId,
-        organization_id: organizationId,
         type,
         message,
-        is_read: false,
         tenant_id: tenantId,
+        entity_type: entityType || null,
+        entity_id: entityId || null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();

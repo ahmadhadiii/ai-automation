@@ -26,7 +26,6 @@ export class CommentsService {
         id,
         task_id: dto.task_id,
         user_id: userId,
-        organization_id: task.organization_id,
         content: dto.content,
         tenant_id: tenantId,
       })

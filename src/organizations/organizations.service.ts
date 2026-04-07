@@ -29,6 +29,8 @@ export class OrganizationsService {
         id: userId,
         email: dto.adminEmail,
         password_hash,
+        first_name: 'Admin',
+        last_name: '',
         role: 'Admin',
         is_active: true,
         tenant_id: organizationId,
