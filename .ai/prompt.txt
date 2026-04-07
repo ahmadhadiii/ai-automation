@@ -1,5 +1,6 @@
 === COMPLETED STORIES ===
-No stories completed yet. This is the first implementation.
+Stories already implemented: 1
+Do NOT re-implement these. Build on top of existing code.
 
 === CURRENT REPO FILE TREE ===
 .ai/
@@ -15,6 +16,7 @@ src/
     attachments.module.ts
     attachments.service.ts
   audit/
+    audit.controller.ts
     audit.module.ts
     audit.service.ts
   auth/
@@ -36,6 +38,7 @@ src/
     dto/
       create-comment.dto.ts
   dashboard/
+    dashboard.controller.ts
     dashboard.module.ts
     dashboard.service.ts
   database/
@@ -48,9 +51,11 @@ src/
       001_init_users.ts
       002_create_users.ts
       003_create_refresh_tokens.ts
+      004_fix_tasks_columns.ts
     types.ts
   main.ts
   notifications/
+    notifications.controller.ts
     notifications.module.ts
     notifications.service.ts
   organizations/
@@ -88,6 +93,7 @@ tsconfig.json
   - 001_init_users.ts
   - 002_create_users.ts
   - 003_create_refresh_tokens.ts
+  - 004_fix_tasks_columns.ts
 
 === KEY SOURCE FILES (current content) ===
 
@@ -594,4 +600,431 @@ BEFORE implementing the story, fix these bugs in existing files:
 THEN implement the story task below.
 
 Task:
-Send the INPUT JSON (stories + state). I can’t select or generate the implementation prompt without it.
+# ARCHITECTURE.md
+> This file is the single source of truth for all implementation decisions.
+> Claude Code MUST read this entire file before writing any code.
+
+## STACK
+- Framework: NestJS 10
+- Query Builder: Kysely 0.27
+- Database: PostgreSQL
+- Auth: JWT (@nestjs/jwt, @nestjs/passport, passport-jwt)
+- Validation: class-validator, class-transformer
+- Password: bcrypt (12 rounds)
+- IDs: uuid v4
+- Port: 3001
+- Global prefix: /api
+
+## PROJECT STRUCTURE
+src/
+  app.module.ts
+  main.ts
+
+  database/
+    database.module.ts
+    database.service.ts
+    types.ts
+    migrate.ts
+    migrations/
+      001_initial.ts
+
+  auth/
+    auth.module.ts
+    auth.controller.ts
+    auth.service.ts
+    jwt.strategy.ts
+    jwt-auth.guard.ts
+    roles.guard.ts
+    decorators/
+      public.decorator.ts
+      roles.decorator.ts
+    dto/
+      register.dto.ts
+      login.dto.ts
+      refresh-token.dto.ts
+
+  organizations/
+    organizations.module.ts
+    organizations.controller.ts
+    organizations.service.ts
+    dto/
+      create-organization.dto.ts
+
+  users/
+    users.module.ts
+    users.controller.ts
+    users.service.ts
+    dto/
+      create-user.dto.ts
+
+  projects/
+    projects.module.ts
+    projects.controller.ts
+    projects.service.ts
+    dto/
+      create-project.dto.ts
+      update-project.dto.ts
+
+  tasks/
+    tasks.module.ts
+    tasks.controller.ts
+    tasks.service.ts
+    dto/
+      create-task.dto.ts
+      update-task.dto.ts
+
+  dashboard/
+    dashboard.module.ts
+    dashboard.controller.ts
+    dashboard.service.ts
+
+  notifications/
+    notifications.module.ts
+    notifications.controller.ts
+    notifications.service.ts
+
+  audit/
+    audit.module.ts
+    audit.controller.ts
+    audit.service.ts
+
+## GLOBAL GUARDS — CRITICAL
+Guards are registered globally via APP_GUARD in app.module.ts:
+{
+  provide: APP_GUARD,
+  useClass: JwtAuthGuard,
+},
+{
+  provide: APP_GUARD,
+  useClass: RolesGuard,
+}
+
+CONSEQUENCE: NEVER add @UseGuards() to any controller or method.
+Adding @UseGuards() on a controller will cause double-guard execution and authentication bugs.
+
+## AUTHENTICATION
+
+### JWT Payload (what goes INTO the token):
+{ sub: userId, email: string, role: string, tenant_id: string }
+
+### req.user (what comes OUT after validation — set by jwt.strategy.ts):
+{ id: string, email: string, role: string, tenant_id: string }
+
+### CRITICAL: ALWAYS use req.user.id — NEVER use req.user.sub
+req.user.sub does not exist. jwt.strategy.ts validate() maps sub → id.
+
+### jwt.strategy.ts validate() must return exactly:
+return {
+  id: payload.sub,
+  email: payload.email,
+  role: payload.role,
+  tenant_id: payload.tenant_id,
+};
+
+## DECORATORS
+- @Public() — marks a route as unauthenticated (bypasses JwtAuthGuard)
+- @Roles('Admin') — restricts route to Admin role only
+- @Roles('Admin', 'ProjectManager') — restricts to multiple roles
+
+## ROLE VALUES — exact casing, no exceptions
+- 'Admin'
+- 'ProjectManager'  
+- 'Member'
+WRONG: 'ADMIN', 'admin', 'MEMBER'
+
+## STATUS VALUES — exact casing, no exceptions
+- Task: 'ToDo' | 'InProgress' | 'Completed'
+- Project: 'Active' | 'Archived'
+WRONG: 'TODO', 'IN_PROGRESS', 'DONE'
+
+## REGISTRATION RULE
+Register endpoint NEVER accepts role from request body.
+Role is hardcoded as 'Member' in auth.service.ts:
+role: 'Member', // NEVER dto.role
+
+## KYSELY SELECT RULES
+
+NEVER use .select() with a string array:
+  .select(['id', 'email', 'role'])   ← WRONG — TypeScript error
+
+CORRECT patterns:
+  .selectAll()                        ← preferred
+  .select('id').select('email')       ← for specific columns
+  .select('users.id')                 ← with table prefix for joins
+
+## KYSELY Generated<T> RULES
+
+Generated<T> = database generates this value via DEFAULT.
+Use Generated<> ONLY for these columns:
+  id              → Generated<string>   (DEFAULT uuid_generate_v4())
+  created_at      → Generated<Date>     (DEFAULT now())
+  updated_at      → Generated<Date>     (DEFAULT now())
+  is_active       → Generated<boolean>  (DEFAULT true)
+  read            → Generated<boolean>  (DEFAULT false)
+
+Everything else is plain string or string | null:
+  tenant_id       → string
+  email           → string
+  role            → string
+  organization_id → string
+  created_by      → string
+  assignee_id     → string | null
+  description     → string | null
+  due_date        → string | null
+
+THE RULE: If you write the value in .values({...}) during INSERT, it is plain string.
+
+## COMPLETE types.ts
+```typescript
+import { Generated } from 'kysely';
+
+export interface Database {
+  organizations: OrganizationsTable;
+  users: UsersTable;
+  projects: ProjectsTable;
+  tasks: TasksTable;
+  audit_logs: AuditLogsTable;
+}
+
+export interface OrganizationsTable {
+  id: Generated<string>;
+  name: string;
+  created_at: Generated<Date>;
+}
+
+export interface UsersTable {
+  id: Generated<string>;
+  tenant_id: string;
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  created_at: Generated<Date>;
+}
+
+export interface ProjectsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  created_at: Generated<Date>;
+}
+
+export interface TasksTable {
+  id: Generated<string>;
+  tenant_id: string;
+  project_id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  assignee_id: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface AuditLogsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  user_id: string;
+  action: string;
+  entity: string;
+  entity_id: string;
+  created_at: Generated<Date>;
+}
+```
+
+## DATABASE PATTERNS
+
+### SELECT with pagination (use this exact pattern):
+```typescript
+const page = Number(query.page) || 1;
+const limit = Math.min(Number(query.limit) || 20, 100);
+const offset = (page - 1) * limit;
+
+const [{ count }] = await this.db
+  .selectFrom('table_name')
+  .select(this.db.fn.count('id').as('count'))
+  .where('tenant_id', '=', tenantId)
+  .execute();
+
+const data = await this.db
+  .selectFrom('table_name')
+  .selectAll()
+  .where('tenant_id', '=', tenantId)
+  .orderBy('created_at', 'desc')
+  .limit(limit)
+  .offset(offset)
+  .execute();
+
+return {
+  data,
+  meta: {
+    total: Number(count),
+    page,
+    limit,
+    totalPages: Math.ceil(Number(count) / limit),
+  },
+};
+```
+
+### INSERT:
+```typescript
+import { v4 as uuidv4 } from 'uuid';
+
+const record = await this.db
+  .insertInto('table_name')
+  .values({
+    id: uuidv4(),
+    tenant_id: tenantId,
+  })
+  .returningAll()
+  .executeTakeFirstOrThrow();
+```
+
+### UPDATE:
+```typescript
+const record = await this.db
+  .updateTable('table_name')
+  .set({ field: value })
+  .where('id', '=', id)
+  .where('tenant_id', '=', tenantId)
+  .returningAll()
+  .executeTakeFirst();
+
+if (!record) throw new NotFoundException('Resource not found');
+```
+
+### DELETE:
+```typescript
+const result = await this.db
+  .deleteFrom('table_name')
+  .where('id', '=', id)
+  .where('tenant_id', '=', tenantId)
+  .executeTakeFirst();
+
+if (!result.numDeletedRows) throw new NotFoundException('Resource not found');
+```
+
+### SELECT ONE:
+```typescript
+const record = await this.db
+  .selectFrom('table_name')
+  .selectAll()
+  .where('id', '=', id)
+  .where('tenant_id', '=', tenantId)
+  .executeTakeFirst();
+
+if (!record) throw new NotFoundException('Resource not found');
+```
+
+## CONTROLLER PATTERN
+```typescript
+import { Controller, Get, Post, Put, Delete, Param, Query, Body, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Public } from '../auth/decorators/public.decorator';
+
+@Controller('resource-name')
+export class ResourceController {
+  constructor(private readonly resourceService: ResourceService) {}
+
+  @Get()
+  findAll(@Request() req, @Query() query) {
+    return this.resourceService.findAll(req.user.tenant_id, query);
+  }
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  create(@Request() req, @Body() dto) {
+    return this.resourceService.create(req.user.id, req.user.tenant_id, dto);
+  }
+
+  @Get(':id')
+  findOne(@Request() req, @Param('id') id: string) {
+    return this.resourceService.findOne(id, req.user.tenant_id);
+  }
+
+  @Put(':id')
+  update(@Request() req, @Param('id') id: string, @Body() dto) {
+    return this.resourceService.update(id, req.user.tenant_id, dto);
+  }
+
+  @Delete(':id')
+  @Roles('Admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(@Request() req, @Param('id') id: string) {
+    return this.resourceService.remove(id, req.user.tenant_id);
+  }
+}
+```
+
+## DTO PATTERN
+```typescript
+import { IsString, IsEmail, IsNotEmpty, IsOptional, IsUUID, IsIn } from 'class-validator';
+
+export class CreateResourceDto {
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsIn(['ToDo', 'InProgress', 'Completed'])
+  @IsOptional()
+  status?: string;
+}
+```
+
+## MODULE PATTERN
+```typescript
+import { Module } from '@nestjs/common';
+
+@Module({
+  controllers: [ResourceController],
+  providers: [ResourceService],
+  exports: [ResourceService],
+})
+export class ResourceModule {}
+```
+
+## app.module.ts PATTERN
+```typescript
+@Module({
+  imports: [
+    DatabaseModule,
+    AuthModule,
+    OrganizationsModule,
+    UsersModule,
+    ProjectsModule,
+    TasksModule,
+    DashboardModule,
+    NotificationsModule,
+    AuditModule,
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
+})
+export class AppModule {}
+```
+
+## FILES THAT MUST NEVER BE DUPLICATED
+- Only ONE DatabaseModule: src/database/database.module.ts
+- Only ONE types.ts: src/database/types.ts
+- Only ONE app.module.ts: src/app.module.ts
+
+## ADDING A NEW MODULE — CHECKLIST
+1. Create module folder and files
+2. Controller WITHOUT @UseGuards()
+3. Service uses DatabaseService
+4. DTOs created
+5. Every query filters tenant_id
+6. Pagination format enforced
+7. Module added to app.module.ts
+
+## VERIFICATION BEFORE EVERY COMMIT
+Run: npx tsc --noEmit  
+Zero errors required.
