@@ -8,8 +8,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
+const core_1 = require("@nestjs/core");
+const throttler_1 = require("@nestjs/throttler");
 const database_module_1 = require("./database/database.module");
-const database_module_2 = require("./modules/database/database.module");
 const auth_module_1 = require("./auth/auth.module");
 const users_module_1 = require("./users/users.module");
 const projects_module_1 = require("./projects/projects.module");
@@ -19,14 +20,22 @@ const attachments_module_1 = require("./attachments/attachments.module");
 const notifications_module_1 = require("./notifications/notifications.module");
 const audit_module_1 = require("./audit/audit.module");
 const dashboard_module_1 = require("./dashboard/dashboard.module");
+const organizations_module_1 = require("./organizations/organizations.module");
+const auth_guard_1 = require("./auth/auth.guard");
+const roles_guard_1 = require("./auth/roles.guard");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            throttler_1.ThrottlerModule.forRoot([
+                {
+                    ttl: 60000,
+                    limit: 100,
+                },
+            ]),
             database_module_1.DatabaseModule,
-            database_module_2.KyselyDatabaseModule,
             auth_module_1.AuthModule,
             users_module_1.UsersModule,
             projects_module_1.ProjectsModule,
@@ -36,6 +45,21 @@ exports.AppModule = AppModule = __decorate([
             notifications_module_1.NotificationsModule,
             audit_module_1.AuditModule,
             dashboard_module_1.DashboardModule,
+            organizations_module_1.OrganizationsModule,
+        ],
+        providers: [
+            {
+                provide: core_1.APP_GUARD,
+                useClass: auth_guard_1.JwtAuthGuard,
+            },
+            {
+                provide: core_1.APP_GUARD,
+                useClass: roles_guard_1.RolesGuard,
+            },
+            {
+                provide: core_1.APP_GUARD,
+                useClass: throttler_1.ThrottlerGuard,
+            },
         ],
     })
 ], AppModule);

@@ -23,7 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: JwtPayload) {
     const user = await this.db
       .selectFrom('users')
-      .select(['id', 'email', 'role', 'tenant_id'])
+      .selectAll()
       .where('id', '=', payload.sub)
       .executeTakeFirst();
 

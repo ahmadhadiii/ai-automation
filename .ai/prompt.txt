@@ -1,56 +1,562 @@
-EXISTING REPO FILES (read these first to match style and patterns):
-src/app.module.ts
-src/attachments/attachments.module.ts
-src/attachments/attachments.service.ts
-src/audit/audit.module.ts
-src/audit/audit.service.ts
-src/auth/auth.controller.ts
-src/auth/auth.guard.ts
-src/auth/auth.module.ts
-src/auth/auth.service.ts
-src/auth/dto/login.dto.ts
-src/auth/dto/register.dto.ts
-src/auth/jwt.strategy.ts
-src/auth/public.decorator.ts
-src/auth/roles.decorator.ts
-src/auth/roles.guard.ts
-src/comments/comments.module.ts
-src/comments/comments.service.ts
-src/dashboard/dashboard.module.ts
-src/dashboard/dashboard.service.ts
-src/database/database.controller.ts
-src/database/database.module.ts
-src/database/database.service.ts
-src/database/database.types.ts
-src/database/kysely.module.ts
-src/database/kysely.provider.ts
-src/database/migrate.ts
-src/database/migrations/001_init.sql
-src/database/migrations/001_init_users.ts
-src/database/migrations/001_initial.ts
-src/database/migrations/002_create_users.ts
-src/database/types.ts
-src/main.ts
-src/modules/database/database.module.ts
-src/modules/database/database.types.ts
-src/modules/database/kysely.provider.ts
-src/notifications/notifications.module.ts
-src/notifications/notifications.service.ts
-src/projects/dto/create-project.dto.ts
-src/projects/dto/update-project.dto.ts
-src/projects/projects.controller.ts
-src/projects/projects.module.ts
-src/projects/projects.service.ts
-src/tasks/dto/create-task.dto.ts
-src/tasks/dto/update-task.dto.ts
-src/tasks/tasks.controller.ts
-src/tasks/tasks.module.ts
-src/tasks/tasks.service.ts
-src/users/dto/user-response.dto.ts
-src/users/users.controller.ts
-src/users/users.module.ts
-src/users/users.service.ts
+=== COMPLETED STORIES ===
+No stories completed yet. This is the first implementation.
 
+=== CURRENT REPO FILE TREE ===
+.ai/
+  prompt.txt
+  state.json
+.env.example
+nest-cli.json
+package.json
+README.md
+src/
+  app.module.ts
+  attachments/
+    attachments.module.ts
+    attachments.service.ts
+  audit/
+    audit.module.ts
+    audit.service.ts
+  auth/
+    auth.controller.ts
+    auth.guard.ts
+    auth.module.ts
+    auth.service.ts
+    dto/
+      login.dto.ts
+      register.dto.ts
+    jwt.strategy.ts
+    public.decorator.ts
+    roles.decorator.ts
+    roles.guard.ts
+  comments/
+    comments.controller.ts
+    comments.module.ts
+    comments.service.ts
+    dto/
+      create-comment.dto.ts
+  dashboard/
+    dashboard.module.ts
+    dashboard.service.ts
+  database/
+    database.module.ts
+    database.service.ts
+    migrate.ts
+    migrations/
+      001_init.sql
+      001_initial.ts
+      001_init_users.ts
+      002_create_users.ts
+      003_create_refresh_tokens.ts
+    types.ts
+  main.ts
+  notifications/
+    notifications.module.ts
+    notifications.service.ts
+  organizations/
+    dto/
+      create-organization.dto.ts
+    organizations.controller.ts
+    organizations.module.ts
+    organizations.service.ts
+  projects/
+    dto/
+      create-project.dto.ts
+      update-project.dto.ts
+    projects.controller.ts
+    projects.module.ts
+    projects.service.ts
+  tasks/
+    dto/
+      create-task.dto.ts
+      update-task.dto.ts
+    tasks.controller.ts
+    tasks.module.ts
+    tasks.service.ts
+  users/
+    dto/
+      user-response.dto.ts
+    users.controller.ts
+    users.module.ts
+    users.service.ts
+test.js
+tsconfig.json
+
+=== EXISTING MIGRATIONS ===
+  - 001_init.sql
+  - 001_initial.ts
+  - 001_init_users.ts
+  - 002_create_users.ts
+  - 003_create_refresh_tokens.ts
+
+=== KEY SOURCE FILES (current content) ===
+
+--- src/app.module.ts ---
+import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { DatabaseModule } from './database/database.module';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { ProjectsModule } from './projects/projects.module';
+import { TasksModule } from './tasks/tasks.module';
+import { CommentsModule } from './comments/comments.module';
+import { AttachmentsModule } from './attachments/attachments.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { AuditModule } from './audit/audit.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { OrganizationsModule } from './organizations/organizations.module';
+import { JwtAuthGuard } from './auth/auth.guard';
+import { RolesGuard } from './auth/roles.guard';
+
+@Module({
+  imports: [
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
+    DatabaseModule,
+    AuthModule,
+    UsersModule,
+    ProjectsModule,
+    TasksModule,
+    CommentsModule,
+    AttachmentsModule,
+    NotificationsModule,
+    AuditModule,
+    DashboardModule,
+    OrganizationsModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
+})
+export class AppModule {}
+
+
+--- src/database/types.ts ---
+import { Generated } from 'kysely';
+
+export interface UserTable {
+  id: Generated<string>;
+  email: string;
+  password_hash: string;
+  first_name: string | null;
+  last_name: string | null;
+  role: string;
+  is_active: Generated<boolean>;
+  tenant_id: string;
+  organization_id: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface OrganizationTable {
+  id: Generated<string>;
+  name: string;
+  tenant_id: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface OrganizationMemberTable {
+  id: Generated<string>;
+  organization_id: string;
+  user_id: string;
+  role: 'Admin' | 'ProjectManager' | 'Member';
+  tenant_id: string;
+  created_at: Generated<Date>;
+}
+
+export interface ProjectTable {
+  id: Generated<string>;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  status: 'Active' | 'Archived';
+  created_by: string;
+  tenant_id: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface TaskTable {
+  id: Generated<string>;
+  project_id: string;
+  organization_id: string;
+  title: string;
+  description: string | null;
+  status: 'ToDo' | 'InProgress' | 'Completed';
+  assignee_id: string | null;
+  created_by: string;
+  due_date: Date | null;
+  tenant_id: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CommentTable {
+  id: Generated<string>;
+  task_id: string;
+  user_id: string;
+  organization_id: string;
+  content: string;
+  tenant_id: string;
+  created_at: Generated<Date>;
+}
+
+export interface AttachmentTable {
+  id: Generated<string>;
+  task_id: string;
+  uploaded_by: string;
+  organization_id: string;
+  file_name: string;
+  file_url: string;
+  tenant_id: string;
+  created_at: Generated<Date>;
+}
+
+export interface NotificationTable {
+  id: Generated<string>;
+  user_id: string;
+  organization_id: string;
+  type: string;
+  message: string;
+  is_read: boolean;
+  tenant_id: string;
+  created_at: Generated<Date>;
+}
+
+export interface AuditLogTable {
+  id: Generated<string>;
+  organization_id: string;
+  user_id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  metadata: unknown;
+  tenant_id: string;
+  created_at: Generated<Date>;
+}
+
+export interface RefreshTokensTable {
+  id: Generated<string>;
+  user_id: string;
+  token_hash: string;
+  expires_at: Date;
+  tenant_id: string;
+  created_at: Generated<Date>;
+}
+
+export interface ProjectMembersTable {
+  id: Generated<string>;
+  project_id: string;
+  user_id: string;
+  role: string;
+  tenant_id: string;
+  created_at: Generated<Date>;
+}
+
+export interface Database {
+  users: UserTable;
+  organizations: OrganizationTable;
+  organization_members: OrganizationMemberTable;
+  projects: ProjectTable;
+  tasks: TaskTable;
+  comments: CommentTable;
+  attachments: AttachmentTable;
+  notifications: NotificationTable;
+  audit_logs: AuditLogTable;
+  refresh_tokens: RefreshTokensTable;
+  project_members: ProjectMembersTable;
+}
+
+
+--- src/database/database.service.ts ---
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Kysely, PostgresDialect } from 'kysely';
+import { Pool } from 'pg';
+import { Database } from './types';
+
+@Injectable()
+export class DatabaseService
+  extends Kysely<Database>
+  implements OnModuleDestroy
+{
+  constructor() {
+    super({
+      dialect: new PostgresDialect({
+        pool: new Pool({
+          connectionString: process.env.DATABASE_URL,
+        }),
+      }),
+    });
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.destroy();
+  }
+}
+
+
+--- src/database/database.module.ts ---
+import { Module, Global } from '@nestjs/common';
+import { DatabaseService } from './database.service';
+
+@Global()
+@Module({
+  providers: [DatabaseService],
+  exports: [DatabaseService],
+})
+export class DatabaseModule {}
+
+
+--- src/auth/auth.service.ts ---
+import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import { v4 as uuidv4 } from 'uuid';
+import { DatabaseService } from '../database/database.service';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { JwtPayload } from './jwt.strategy';
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly jwtService: JwtService,
+  ) {}
+
+  async register(dto: RegisterDto) {
+    const existing = await this.db
+      .selectFrom('users')
+      .select('id')
+      .where('email', '=', dto.email)
+      .executeTakeFirst();
+
+    if (existing) {
+      throw new ConflictException('Email already registered');
+    }
+
+    const password_hash = await bcrypt.hash(dto.password, 12);
+    const id = uuidv4();
+
+    const user = await this.db
+      .insertInto('users')
+      .values({
+        id,
+        email: dto.email,
+        password_hash,
+        role: 'Member',
+        tenant_id: dto.tenant_id,
+        organization_id: dto.organization_id,
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      tenant_id: user.tenant_id,
+    };
+
+    return {
+      access_token: this.jwtService.sign(payload),
+      user,
+    };
+  }
+
+  async login(dto: LoginDto) {
+    const user = await this.db
+      .selectFrom('users')
+      .selectAll()
+      .where('email', '=', dto.email)
+      .executeTakeFirst();
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const valid = await bcrypt.compare(dto.password, user.password_hash);
+    if (!valid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      tenant_id: user.tenant_id,
+    };
+
+    const { password_hash, ...userWithoutPassword } = user;
+
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: userWithoutPassword,
+    };
+  }
+}
+
+
+--- src/auth/auth.guard.ts ---
+import { Injectable, ExecutionContext } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { Reflector } from '@nestjs/core';
+import { IS_PUBLIC_KEY } from './public.decorator';
+
+@Injectable()
+export class JwtAuthGuard extends AuthGuard('jwt') {
+  constructor(private readonly reflector: Reflector) {
+    super();
+  }
+
+  canActivate(context: ExecutionContext) {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      return true;
+    }
+
+    return super.canActivate(context);
+  }
+}
+
+
+--- src/auth/roles.guard.ts ---
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { ROLES_KEY } from './roles.decorator';
+
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (!requiredRoles) {
+      return true;
+    }
+
+    const { user } = context.switchToHttp().getRequest();
+
+    if (!requiredRoles.includes(user.role)) {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    return true;
+  }
+}
+
+
+--- src/auth/jwt.strategy.ts ---
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { DatabaseService } from '../database/database.service';
+
+export interface JwtPayload {
+  sub: string;
+  email: string;
+  role: string;
+  tenant_id: string;
+}
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor(private readonly db: DatabaseService) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: process.env.JWT_SECRET || 'changeme-secret-key',
+    });
+  }
+
+  async validate(payload: JwtPayload) {
+    const user = await this.db
+      .selectFrom('users')
+      .selectAll()
+      .where('id', '=', payload.sub)
+      .executeTakeFirst();
+
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    return user;
+  }
+}
+
+
+--- src/auth/public.decorator.ts ---
+import { SetMetadata } from '@nestjs/common';
+
+export const IS_PUBLIC_KEY = 'isPublic';
+export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
+
+
+--- src/auth/roles.decorator.ts ---
+import { SetMetadata } from '@nestjs/common';
+
+export const ROLES_KEY = 'roles';
+export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
+
+
+--- src/auth/dto/register.dto.ts ---
+import { IsEmail, IsString, MinLength, IsUUID } from 'class-validator';
+
+export class RegisterDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @MinLength(8)
+  password: string;
+
+  @IsString()
+  tenant_id: string;
+
+  @IsUUID()
+  organization_id: string;
+}
+
+
+--- src/auth/dto/login.dto.ts ---
+import { IsEmail, IsString } from 'class-validator';
+
+export class LoginDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  password: string;
+}
+
+
+
+=== YOUR TASK ===
 DIRECT AGENT INSTRUCTION:
 
 You are Claude Code working inside a real git repository.
@@ -69,312 +575,23 @@ BEFORE WRITING CODE — read and understand these files:
 - src/auth/public.decorator.ts
 - src/auth/roles.decorator.ts
 
+BEFORE implementing the story, fix these bugs in existing files:
+1. Replace req.user.sub with req.user.id in all controllers
+2. Remove all @UseGuards() from controllers — guards are global via APP_GUARD
+3. Change @Roles('ADMIN') to @Roles('Admin') everywhere
+4. Remove role field from src/auth/dto/register.dto.ts
+5. Change auth.service.ts to use hardcoded 'Member' instead of dto.role
+6. Delete src/modules/database/ folder entirely
+7. Delete src/database/kysely.module.ts
+8. Delete src/database/database.types.ts
+9. Remove KyselyModule import from app.module.ts
+10. Add RefreshTokensTable and ProjectMembersTable to src/database/types.ts
+12. In src/database/types.ts, make sure EVERY table interface has tenant_id: string as a property — if it is missing, add it
+13. In ALL service files, replace .select(['col1', 'col2', ...]) with .selectAll() — Kysely does not accept string arrays in .select()
+14. In src/database/types.ts fix Generated<> usage: only id, created_at, updated_at, is_active should use Generated<>. All other columns (tenant_id, email, name, role, password_hash, organization_id, created_by, project_id, etc.) must be plain string or string | null
+15. In tasks service and DTO files, replace any occurrence of 'TODO' with 'ToDo', 'IN_PROGRESS' with 'InProgress', 'DONE' with 'Completed'
+16. Make sure TasksTable has assignee_id: string | null as a property
+THEN implement the story task below.
+
 Task:
-TASK: Organizations Module
-
-READ THESE FILES FIRST before writing any line of code:
-- src/app.module.ts
-- src/database/database.service.ts
-- src/database/types.ts
-- src/auth/auth.service.ts
-- src/auth/auth.guard.ts
-- src/auth/roles.guard.ts
-- src/auth/roles.decorator.ts
-- src/auth/public.decorator.ts
-- src/auth/jwt.strategy.ts
-- src/auth/dto/register.dto.ts
-
-CRITICAL RULES — never break these:
-1. Guards are GLOBAL via APP_GUARD — do NOT add @UseGuards() to any controller or method
-2. Use @Public() for unauthenticated routes, @Roles('Admin') for role-restricted routes
-3. jwt.strategy.ts validate() returns { id, email, role, tenant_id } — always use req.user.id, NEVER req.user.sub
-4. Role values are EXACTLY: Admin, HRManager, Member — never ADMIN, never all caps
-5. Role is NEVER set from request body — always set server-side, remove role from RegisterDto entirely
-6. Use ONLY src/database/database.service.ts for DB access — do NOT create new database providers
-7. DatabaseModule is @Global() — do NOT import it in feature modules
-8. Every query MUST filter by tenant_id
-9. UUID PKs always via uuidv4() — never DB-generated
-10. Never return password_hash in any response
-11. New migrations start at 003_ — 001 and 002 already exist
-12. Every module needs: module file, controller, service, DTOs — never skip controller
-
-MODULE STRUCTURE TO CREATE:
-- src/organizations/organizations.module.ts
-- src/organizations/organizations.controller.ts
-- src/organizations/organizations.service.ts
-- src/organizations/dto/create-organization.dto.ts
-
-FILES TO MODIFY:
-- src/app.module.ts
-
-DATABASE CHANGES:
-
-Create file: src/database/migrations/003_create_refresh_tokens.ts
-
-Full content:
-
-import { Kysely, sql } from 'kysely';
-
-export async function up(db: Kysely<any>): Promise<void> {
-  await db.schema
-    .createTable('refresh_tokens')
-    .addColumn('id', 'uuid', (col) => col.primaryKey().notNull())
-    .addColumn('user_id', 'uuid', (col) => col.notNull())
-    .addColumn('token_hash', 'text', (col) => col.notNull())
-    .addColumn('expires_at', 'timestamptz', (col) => col.notNull())
-    .addColumn('created_at', 'timestamptz', (col) =>
-      col.notNull().defaultTo(sql`now()`)
-    )
-    .addColumn('revoked_at', 'timestamptz')
-    .addForeignKeyConstraint(
-      'refresh_tokens_user_id_fk',
-      ['user_id'],
-      'users',
-      ['id'],
-      (cb) => cb.onDelete('cascade')
-    )
-    .execute();
-
-  await db.schema
-    .createIndex('refresh_tokens_user_id_idx')
-    .on('refresh_tokens')
-    .column('user_id')
-    .execute();
-
-  await db.schema
-    .createIndex('refresh_tokens_expires_at_idx')
-    .on('refresh_tokens')
-    .column('expires_at')
-    .execute();
-
-  await db.schema
-    .createIndex('refresh_tokens_token_hash_unique')
-    .on('refresh_tokens')
-    .column('token_hash')
-    .unique()
-    .execute();
-
-  await db.schema
-    .createTable('project_members')
-    .addColumn('id', 'uuid', (col) => col.primaryKey().notNull())
-    .addColumn('project_id', 'uuid', (col) => col.notNull())
-    .addColumn('user_id', 'uuid', (col) => col.notNull())
-    .addColumn('created_at', 'timestamptz', (col) =>
-      col.notNull().defaultTo(sql`now()`)
-    )
-    .addForeignKeyConstraint(
-      'project_members_project_id_fk',
-      ['project_id'],
-      'projects',
-      ['id'],
-      (cb) => cb.onDelete('cascade')
-    )
-    .addForeignKeyConstraint(
-      'project_members_user_id_fk',
-      ['user_id'],
-      'users',
-      ['id'],
-      (cb) => cb.onDelete('cascade')
-    )
-    .execute();
-
-  await db.schema
-    .createIndex('project_members_user_id_idx')
-    .on('project_members')
-    .column('user_id')
-    .execute();
-
-  await db.schema
-    .createIndex('project_members_unique_idx')
-    .on('project_members')
-    .columns(['project_id', 'user_id'])
-    .unique()
-    .execute();
-}
-
-export async function down(db: Kysely<any>): Promise<void> {
-  await db.schema.dropTable('project_members').execute();
-  await db.schema.dropTable('refresh_tokens').execute();
-}
-
-ENDPOINTS TO IMPLEMENT:
-
-POST /api/organizations
-Decorator: @Public()
-Request body:
-{
-  name: string;
-  adminEmail: string;
-  password: string;
-}
-Response shape:
-{
-  organizationId: string;
-  userId: string;
-}
-Service logic:
-  1. Generate organizationId = uuidv4()
-  2. Insert into organizations table
-  3. Hash password using bcrypt.hash(password, 12)
-  4. Generate userId = uuidv4()
-  5. Insert user with:
-     - id: userId
-     - email: adminEmail
-     - password_hash: hashed password
-     - role: 'Admin'
-     - is_active: true
-     - organization_id = organizationId (IMPORTANT: this is tenant_id equivalent)
-  6. Return { organizationId, userId }
-
-KYSELY PATTERNS TO USE:
-
-Insert organization:
-await this.db
-  .insertInto('organizations')
-  .values({
-    id: organizationId,
-    name: dto.name
-  })
-  .execute();
-
-Insert admin user:
-await this.db
-  .insertInto('users')
-  .values({
-    id: userId,
-    email: dto.adminEmail,
-    password_hash: hashedPassword,
-    role: 'Admin',
-    is_active: true,
-    organization_id: organizationId
-  })
-  .execute();
-
-CONTROLLER IMPLEMENTATION:
-
-File: src/organizations/organizations.controller.ts
-
-import { Controller, Post, Body } from '@nestjs/common';
-import { Public } from '../auth/public.decorator';
-import { OrganizationsService } from './organizations.service';
-import { CreateOrganizationDto } from './dto/create-organization.dto';
-
-@Controller('organizations')
-export class OrganizationsController {
-  constructor(private readonly organizationsService: OrganizationsService) {}
-
-  @Public()
-  @Post()
-  create(@Body() dto: CreateOrganizationDto) {
-    return this.organizationsService.create(dto);
-  }
-}
-
-SERVICE IMPLEMENTATION:
-
-File: src/organizations/organizations.service.ts
-
-import { Injectable } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
-import * as bcrypt from 'bcrypt';
-import { DatabaseService } from '../database/database.service';
-import { CreateOrganizationDto } from './dto/create-organization.dto';
-
-@Injectable()
-export class OrganizationsService {
-  constructor(private readonly db: DatabaseService) {}
-
-  async create(dto: CreateOrganizationDto) {
-    const organizationId = uuidv4();
-    const userId = uuidv4();
-
-    await this.db
-      .insertInto('organizations')
-      .values({
-        id: organizationId,
-        name: dto.name,
-      })
-      .execute();
-
-    const password_hash = await bcrypt.hash(dto.password, 12);
-
-    await this.db
-      .insertInto('users')
-      .values({
-        id: userId,
-        email: dto.adminEmail,
-        password_hash,
-        role: 'Admin',
-        is_active: true,
-        organization_id: organizationId,
-      })
-      .execute();
-
-    return {
-      organizationId,
-      userId,
-    };
-  }
-}
-
-DTO IMPLEMENTATION:
-
-File: src/organizations/dto/create-organization.dto.ts
-
-import { IsEmail, IsString, MinLength } from 'class-validator';
-
-export class CreateOrganizationDto {
-  @IsString()
-  name: string;
-
-  @IsEmail()
-  adminEmail: string;
-
-  @IsString()
-  @MinLength(6)
-  password: string;
-}
-
-MODULE IMPLEMENTATION:
-
-File: src/organizations/organizations.module.ts
-
-import { Module } from '@nestjs/common';
-import { OrganizationsController } from './organizations.controller';
-import { OrganizationsService } from './organizations.service';
-
-@Module({
-  controllers: [OrganizationsController],
-  providers: [OrganizationsService],
-})
-export class OrganizationsModule {}
-
-APP MODULE UPDATE:
-
-Open src/app.module.ts
-
-- Import OrganizationsModule
-- Add it to imports array
-- Ensure no duplicate imports
-
-Example:
-
-import { OrganizationsModule } from './organizations/organizations.module';
-
-@Module({
-  imports: [
-    OrganizationsModule,
-  ],
-})
-export class AppModule {}
-
-VERIFICATION — before finishing, check:
-- POST /api/organizations is marked with @Public()
-- Password is hashed with bcrypt (12 rounds)
-- Role is hardcoded to 'Admin'
-- No role field accepted from request body
-- UUIDs generated via uuidv4()
-- No password_hash returned in response
-- OrganizationsModule added to app.module.ts
-- Migration file is named correctly (003_...)
-- Tables and indexes match specification exactly
+Send the INPUT JSON (stories + state). I can’t select or generate the implementation prompt without it.

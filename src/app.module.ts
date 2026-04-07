@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { KyselyModule } from './database/kysely.module';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -24,7 +23,6 @@ import { RolesGuard } from './auth/roles.guard';
         limit: 100,
       },
     ]),
-    KyselyModule,
     DatabaseModule,
     AuthModule,
     UsersModule,

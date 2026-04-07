@@ -5,48 +5,58 @@ export declare class ProjectsController {
     private readonly projectsService;
     constructor(projectsService: ProjectsService);
     create(dto: CreateProjectDto, req: any): Promise<{
-        name: string;
         tenant_id: string;
+        organization_id: string;
         id: string;
         created_at: Date;
+        updated_at: Date;
+        name: string;
         description: string | null;
-        owner_id: string;
-        status: string;
+        status: "Active" | "Archived";
+        created_by: string;
     }>;
     findAll(req: any): Promise<{
-        name: string;
         tenant_id: string;
+        organization_id: string;
         id: string;
         created_at: Date;
+        updated_at: Date;
+        name: string;
         description: string | null;
-        owner_id: string;
-        status: string;
+        status: "Active" | "Archived";
+        created_by: string;
     }[]>;
     findOne(id: string, req: any): Promise<{
-        name: string;
         tenant_id: string;
+        organization_id: string;
         id: string;
         created_at: Date;
+        updated_at: Date;
+        name: string;
         description: string | null;
-        owner_id: string;
-        status: string;
+        status: "Active" | "Archived";
+        created_by: string;
     }>;
     update(id: string, dto: UpdateProjectDto, req: any): Promise<{
-        name: string;
         tenant_id: string;
+        organization_id: string;
         id: string;
         created_at: Date;
+        updated_at: Date;
+        name: string;
         description: string | null;
-        owner_id: string;
-        status: string;
+        status: "Active" | "Archived";
+        created_by: string;
     }>;
     remove(id: string, req: any): Promise<{
-        name: string;
         tenant_id: string;
+        organization_id: string;
         id: string;
         created_at: Date;
+        updated_at: Date;
+        name: string;
         description: string | null;
-        owner_id: string;
-        status: string;
+        status: "Active" | "Archived";
+        created_by: string;
     }>;
 }

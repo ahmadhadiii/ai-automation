@@ -19,8 +19,12 @@ __decorate([
     __metadata("design:type", String)
 ], CreateProjectDto.prototype, "name", void 0);
 __decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
-], CreateProjectDto.prototype, "description", void 0);
+], CreateProjectDto.prototype, "organization_id", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsDateString)(),
+    __metadata("design:type", String)
+], CreateProjectDto.prototype, "deadline", void 0);
 //# sourceMappingURL=create-project.dto.js.map

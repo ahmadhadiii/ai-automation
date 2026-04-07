@@ -70,10 +70,11 @@ let AuthService = class AuthService {
             id,
             email: dto.email,
             password_hash,
-            role: dto.role || 'MEMBER',
+            role: 'Member',
             tenant_id: dto.tenant_id,
+            organization_id: dto.organization_id,
         })
-            .returning(['id', 'email', 'role', 'tenant_id', 'created_at'])
+            .returningAll()
             .executeTakeFirstOrThrow();
         const payload = {
             sub: user.id,

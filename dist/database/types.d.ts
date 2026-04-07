@@ -1,83 +1,123 @@
 import { Generated } from 'kysely';
-export interface Database {
-    users: UsersTable;
-    refresh_tokens: RefreshTokensTable;
-    projects: ProjectsTable;
-    tasks: TasksTable;
-    comments: CommentsTable;
-    attachments: AttachmentsTable;
-    notifications: NotificationsTable;
-    audit_logs: AuditLogsTable;
-}
-export interface UsersTable {
+export interface UserTable {
     id: Generated<string>;
-    tenant_id: string;
     email: string;
     password_hash: string;
+    first_name: string | null;
+    last_name: string | null;
     role: string;
     is_active: Generated<boolean>;
+    tenant_id: string;
+    organization_id: string;
+    created_at: Generated<Date>;
+    updated_at: Generated<Date>;
+}
+export interface OrganizationTable {
+    id: Generated<string>;
+    name: string;
+    tenant_id: string;
+    created_at: Generated<Date>;
+    updated_at: Generated<Date>;
+}
+export interface OrganizationMemberTable {
+    id: Generated<string>;
+    organization_id: string;
+    user_id: string;
+    role: 'Admin' | 'ProjectManager' | 'Member';
+    tenant_id: string;
+    created_at: Generated<Date>;
+}
+export interface ProjectTable {
+    id: Generated<string>;
+    organization_id: string;
+    name: string;
+    description: string | null;
+    status: 'Active' | 'Archived';
+    created_by: string;
+    tenant_id: string;
+    created_at: Generated<Date>;
+    updated_at: Generated<Date>;
+}
+export interface TaskTable {
+    id: Generated<string>;
+    project_id: string;
+    organization_id: string;
+    title: string;
+    description: string | null;
+    status: 'ToDo' | 'InProgress' | 'Completed';
+    assignee_id: string | null;
+    created_by: string;
+    due_date: Date | null;
+    tenant_id: string;
+    created_at: Generated<Date>;
+    updated_at: Generated<Date>;
+}
+export interface CommentTable {
+    id: Generated<string>;
+    task_id: string;
+    user_id: string;
+    organization_id: string;
+    content: string;
+    tenant_id: string;
+    created_at: Generated<Date>;
+}
+export interface AttachmentTable {
+    id: Generated<string>;
+    task_id: string;
+    uploaded_by: string;
+    organization_id: string;
+    file_name: string;
+    file_url: string;
+    tenant_id: string;
+    created_at: Generated<Date>;
+}
+export interface NotificationTable {
+    id: Generated<string>;
+    user_id: string;
+    organization_id: string;
+    type: string;
+    message: string;
+    is_read: boolean;
+    tenant_id: string;
+    created_at: Generated<Date>;
+}
+export interface AuditLogTable {
+    id: Generated<string>;
+    organization_id: string;
+    user_id: string;
+    action: string;
+    entity_type: string;
+    entity_id: string;
+    metadata: unknown;
+    tenant_id: string;
     created_at: Generated<Date>;
 }
 export interface RefreshTokensTable {
     id: Generated<string>;
-    tenant_id: string;
     user_id: string;
     token_hash: string;
     expires_at: Date;
+    tenant_id: string;
     created_at: Generated<Date>;
 }
-export interface ProjectsTable {
+export interface ProjectMembersTable {
     id: Generated<string>;
-    tenant_id: string;
-    name: string;
-    description: string | null;
-    owner_id: string;
-    status: string;
-    created_at: Generated<Date>;
-}
-export interface TasksTable {
-    id: Generated<string>;
-    tenant_id: string;
     project_id: string;
-    title: string;
-    description: string | null;
-    assignee_id: string | null;
-    status: string;
-    due_date: string | null;
-    created_at: Generated<Date>;
-}
-export interface CommentsTable {
-    id: Generated<string>;
-    tenant_id: string;
-    task_id: string;
-    author_id: string;
-    content: string;
-    created_at: Generated<Date>;
-}
-export interface AttachmentsTable {
-    id: Generated<string>;
-    tenant_id: string;
-    task_id: string;
-    file_name: string;
-    file_url: string;
-    uploaded_by: string;
-    uploaded_at: Generated<Date>;
-}
-export interface NotificationsTable {
-    id: Generated<string>;
-    tenant_id: string;
     user_id: string;
-    message: string;
-    read: Generated<boolean>;
+    role: string;
+    tenant_id: string;
     created_at: Generated<Date>;
 }
-export interface AuditLogsTable {
-    id: Generated<string>;
-    tenant_id: string;
-    user_id: string | null;
-    action: string;
-    entity_type: string;
-    entity_id: string | null;
-    metadata: Record<string, unknown> | null;
-    created_at: Generated<Date>;
+export interface Database {
+    users: UserTable;
+    organizations: OrganizationTable;
+    organization_members: OrganizationMemberTable;
+    projects: ProjectTable;
+    tasks: TaskTable;
+    comments: CommentTable;
+    attachments: AttachmentTable;
+    notifications: NotificationTable;
+    audit_logs: AuditLogTable;
+    refresh_tokens: RefreshTokensTable;
+    project_members: ProjectMembersTable;
 }

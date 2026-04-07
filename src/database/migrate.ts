@@ -1,29 +1,44 @@
-import { Kysely, PostgresDialect } from 'kysely';
+import { Kysely, Migrator, FileMigrationProvider, PostgresDialect } from 'kysely';
 import { Pool } from 'pg';
-import { up } from './migrations/001_initial';
-import { up as upInitUsers } from './migrations/001_init_users';
+import { promises as fs } from 'fs';
+import * as path from 'path';
 
-async function migrate() {
+async function main() {
   const db = new Kysely<any>({
     dialect: new PostgresDialect({
       pool: new Pool({
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT || '5432', 10),
-        user: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASSWORD || 'postgres',
-        database: process.env.DB_NAME || 'task_management',
+        connectionString: process.env.DATABASE_URL,
       }),
     }),
   });
 
-  console.log('Running migrations...');
-  await up(db);
-  await upInitUsers(db);
-  console.log('Migrations completed successfully.');
+  const migrator = new Migrator({
+    db,
+    provider: new FileMigrationProvider({
+      fs,
+      path,
+      migrationFolder: path.join(__dirname, 'migrations'),
+    }),
+  });
+
+  const { error, results } = await migrator.migrateToLatest();
+
+  results?.forEach((it) => {
+    if (it.status === 'Success') {
+      console.log(`Migration "${it.migrationName}" was executed successfully`);
+    } else if (it.status === 'Error') {
+      console.error(`Failed to execute migration "${it.migrationName}"`);
+    }
+  });
+
+  if (error) {
+    console.error('Failed to migrate');
+    console.error(error);
+    process.exit(1);
+  }
+
   await db.destroy();
+  process.exit(0);
 }
 
-migrate().catch((err) => {
-  console.error('Migration failed:', err);
-  process.exit(1);
-});
+main();

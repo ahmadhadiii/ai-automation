@@ -18,11 +18,7 @@ let DatabaseService = class DatabaseService extends kysely_1.Kysely {
         super({
             dialect: new kysely_1.PostgresDialect({
                 pool: new pg_1.Pool({
-                    host: process.env.DB_HOST || 'localhost',
-                    port: parseInt(process.env.DB_PORT || '5432', 10),
-                    user: process.env.DB_USER || 'postgres',
-                    password: process.env.DB_PASSWORD || 'postgres',
-                    database: process.env.DB_NAME || 'task_management',
+                    connectionString: process.env.DATABASE_URL,
                 }),
             }),
         });

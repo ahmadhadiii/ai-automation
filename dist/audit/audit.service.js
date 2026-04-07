@@ -17,7 +17,7 @@ let AuditService = class AuditService {
     constructor(db) {
         this.db = db;
     }
-    async log(userId, action, entityType, entityId, tenantId) {
+    async log(userId, action, entityType, entityId, tenantId, organizationId) {
         return this.db
             .insertInto('audit_logs')
             .values({
@@ -27,6 +27,7 @@ let AuditService = class AuditService {
             entity_type: entityType,
             entity_id: entityId,
             tenant_id: tenantId,
+            organization_id: organizationId,
         })
             .returningAll()
             .executeTakeFirstOrThrow();

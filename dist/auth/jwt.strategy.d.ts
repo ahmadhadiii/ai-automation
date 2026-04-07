@@ -12,9 +12,16 @@ export declare class JwtStrategy extends JwtStrategy_base {
     constructor(db: DatabaseService);
     validate(payload: JwtPayload): Promise<{
         email: string;
-        role: string;
         tenant_id: string;
+        organization_id: string;
         id: string;
+        password_hash: string;
+        first_name: string | null;
+        last_name: string | null;
+        role: string;
+        is_active: boolean;
+        created_at: Date;
+        updated_at: Date;
     }>;
 }
 export {};

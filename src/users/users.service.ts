@@ -9,7 +9,7 @@ export class UsersService {
   async findById(id: string) {
     const user = await this.db
       .selectFrom('users')
-      .select(['id', 'email', 'role', 'tenant_id', 'is_active', 'created_at'])
+      .selectAll()
       .where('id', '=', id)
       .executeTakeFirst();
 
@@ -23,7 +23,7 @@ export class UsersService {
   async findByTenant(tenantId: string) {
     return this.db
       .selectFrom('users')
-      .select(['id', 'email', 'role', 'tenant_id', 'is_active', 'created_at'])
+      .selectAll()
       .where('tenant_id', '=', tenantId)
       .execute();
   }
@@ -31,7 +31,7 @@ export class UsersService {
   async findAllByTenant(tenantId: string): Promise<UserResponseDto[]> {
     const users = await this.db
       .selectFrom('users')
-      .select(['id', 'email', 'role', 'created_at'])
+      .selectAll()
       .where('tenant_id', '=', tenantId)
       .execute();
 

@@ -19,7 +19,7 @@ let UsersService = class UsersService {
     async findById(id) {
         const user = await this.db
             .selectFrom('users')
-            .select(['id', 'email', 'role', 'tenant_id', 'is_active', 'created_at'])
+            .selectAll()
             .where('id', '=', id)
             .executeTakeFirst();
         if (!user) {
@@ -30,9 +30,22 @@ let UsersService = class UsersService {
     async findByTenant(tenantId) {
         return this.db
             .selectFrom('users')
-            .select(['id', 'email', 'role', 'tenant_id', 'is_active', 'created_at'])
+            .selectAll()
             .where('tenant_id', '=', tenantId)
             .execute();
+    }
+    async findAllByTenant(tenantId) {
+        const users = await this.db
+            .selectFrom('users')
+            .selectAll()
+            .where('tenant_id', '=', tenantId)
+            .execute();
+        return users.map((user) => ({
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            createdAt: new Date(user.created_at).toISOString(),
+        }));
     }
 };
 exports.UsersService = UsersService;

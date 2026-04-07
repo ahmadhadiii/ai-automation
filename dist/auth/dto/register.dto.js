@@ -24,12 +24,11 @@ __decorate([
     __metadata("design:type", String)
 ], RegisterDto.prototype, "password", void 0);
 __decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsIn)(['ADMIN', 'MANAGER', 'MEMBER']),
-    __metadata("design:type", String)
-], RegisterDto.prototype, "role", void 0);
-__decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "tenant_id", void 0);
+__decorate([
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], RegisterDto.prototype, "organization_id", void 0);
 //# sourceMappingURL=register.dto.js.map

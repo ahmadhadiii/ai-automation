@@ -17,7 +17,16 @@ let TasksService = class TasksService {
     constructor(db) {
         this.db = db;
     }
-    async create(dto, tenantId) {
+    async create(dto, userId, tenantId) {
+        const project = await this.db
+            .selectFrom('projects')
+            .selectAll()
+            .where('id', '=', dto.project_id)
+            .where('tenant_id', '=', tenantId)
+            .executeTakeFirst();
+        if (!project) {
+            throw new common_1.NotFoundException('Project not found');
+        }
         const id = (0, uuid_1.v4)();
         return this.db
             .insertInto('tasks')
@@ -25,9 +34,11 @@ let TasksService = class TasksService {
             id,
             title: dto.title,
             description: dto.description || null,
-            status: dto.status || 'TODO',
+            status: dto.status || 'ToDo',
             project_id: dto.project_id,
+            organization_id: project.organization_id,
             assignee_id: dto.assignee_id || null,
+            created_by: userId,
             tenant_id: tenantId,
         })
             .returningAll()
@@ -54,9 +65,20 @@ let TasksService = class TasksService {
         return task;
     }
     async update(id, dto, tenantId) {
+        const updateData = {};
+        if (dto.title !== undefined)
+            updateData.title = dto.title;
+        if (dto.description !== undefined)
+            updateData.description = dto.description;
+        if (dto.status !== undefined)
+            updateData.status = dto.status;
+        if (dto.assignee_id !== undefined)
+            updateData.assignee_id = dto.assignee_id;
+        if (dto.due_date !== undefined)
+            updateData.due_date = new Date(dto.due_date);
         const task = await this.db
             .updateTable('tasks')
-            .set({ ...dto })
+            .set(updateData)
             .where('id', '=', id)
             .where('tenant_id', '=', tenantId)
             .returningAll()

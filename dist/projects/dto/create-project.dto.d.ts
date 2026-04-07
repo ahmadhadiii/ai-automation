@@ -1,4 +1,5 @@
 export declare class CreateProjectDto {
     name: string;
-    description?: string;
+    organization_id: string;
+    deadline?: string;
 }

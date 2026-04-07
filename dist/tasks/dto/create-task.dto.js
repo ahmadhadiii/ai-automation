@@ -25,7 +25,7 @@ __decorate([
 ], CreateTaskDto.prototype, "description", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsIn)(['TODO', 'IN_PROGRESS', 'DONE']),
+    (0, class_validator_1.IsIn)(['ToDo', 'InProgress', 'Completed']),
     __metadata("design:type", String)
 ], CreateTaskDto.prototype, "status", void 0);
 __decorate([

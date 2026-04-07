@@ -1,35 +1,24 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { Kysely, PostgresDialect, sql } from 'kysely';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Kysely, PostgresDialect } from 'kysely';
 import { Pool } from 'pg';
 import { Database } from './types';
 
 @Injectable()
 export class DatabaseService
   extends Kysely<Database>
-  implements OnModuleInit, OnModuleDestroy
+  implements OnModuleDestroy
 {
-  private readonly logger = new Logger(DatabaseService.name);
-
   constructor() {
     super({
       dialect: new PostgresDialect({
         pool: new Pool({
-          host: process.env.DB_HOST || 'localhost',
-          port: parseInt(process.env.DB_PORT || '5432', 10),
-          user: process.env.DB_USER || 'postgres',
-          password: process.env.DB_PASSWORD || 'postgres',
-          database: process.env.DB_NAME || 'task_management',
+          connectionString: process.env.DATABASE_URL,
         }),
       }),
     });
   }
 
-  async onModuleInit() {
-    await sql`SELECT 1`.execute(this);
-    this.logger.log('Database connection established');
-  }
-
-  async onModuleDestroy() {
+  async onModuleDestroy(): Promise<void> {
     await this.destroy();
   }
 }

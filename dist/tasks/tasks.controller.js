@@ -14,7 +14,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TasksController = void 0;
 const common_1 = require("@nestjs/common");
-const auth_guard_1 = require("../auth/auth.guard");
 const tasks_service_1 = require("./tasks.service");
 const create_task_dto_1 = require("./dto/create-task.dto");
 const update_task_dto_1 = require("./dto/update-task.dto");
@@ -23,7 +22,7 @@ let TasksController = class TasksController {
         this.tasksService = tasksService;
     }
     create(dto, req) {
-        return this.tasksService.create(dto, req.user.tenant_id);
+        return this.tasksService.create(dto, req.user.id, req.user.tenant_id);
     }
     findAll(req) {
         return this.tasksService.findAll(req.user.tenant_id);
@@ -81,7 +80,6 @@ __decorate([
 ], TasksController.prototype, "remove", null);
 exports.TasksController = TasksController = __decorate([
     (0, common_1.Controller)('tasks'),
-    (0, common_1.UseGuards)(auth_guard_1.JwtAuthGuard),
     __metadata("design:paramtypes", [tasks_service_1.TasksService])
 ], TasksController);
 //# sourceMappingURL=tasks.controller.js.map

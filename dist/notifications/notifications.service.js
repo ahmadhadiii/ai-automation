@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NotificationsService = void 0;
 const common_1 = require("@nestjs/common");
+const uuid_1 = require("uuid");
 const database_service_1 = require("../database/database.service");
 let NotificationsService = class NotificationsService {
     constructor(db) {
@@ -24,6 +25,35 @@ let NotificationsService = class NotificationsService {
             .where('tenant_id', '=', tenantId)
             .orderBy('created_at', 'desc')
             .execute();
+    }
+    async markAsRead(id, userId, tenantId) {
+        const notification = await this.db
+            .updateTable('notifications')
+            .set({ is_read: true })
+            .where('id', '=', id)
+            .where('user_id', '=', userId)
+            .where('tenant_id', '=', tenantId)
+            .returningAll()
+            .executeTakeFirst();
+        if (!notification) {
+            throw new common_1.NotFoundException('Notification not found');
+        }
+        return notification;
+    }
+    async create(userId, organizationId, type, message, tenantId) {
+        return this.db
+            .insertInto('notifications')
+            .values({
+            id: (0, uuid_1.v4)(),
+            user_id: userId,
+            organization_id: organizationId,
+            type,
+            message,
+            is_read: false,
+            tenant_id: tenantId,
+        })
+            .returningAll()
+            .executeTakeFirstOrThrow();
     }
 };
 exports.NotificationsService = NotificationsService;

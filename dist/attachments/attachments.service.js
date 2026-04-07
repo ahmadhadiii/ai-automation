@@ -22,7 +22,7 @@ let AttachmentsService = class AttachmentsService {
             .selectAll()
             .where('task_id', '=', taskId)
             .where('tenant_id', '=', tenantId)
-            .orderBy('uploaded_at', 'desc')
+            .orderBy('created_at', 'desc')
             .execute();
     }
 };

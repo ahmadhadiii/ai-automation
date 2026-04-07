@@ -10,8 +10,8 @@ export class UpdateTaskDto {
   description?: string;
 
   @IsOptional()
-  @IsIn(['TODO', 'IN_PROGRESS', 'DONE'])
-  status?: 'TODO' | 'IN_PROGRESS' | 'DONE';
+  @IsIn(['ToDo', 'InProgress', 'Completed'])
+  status?: 'ToDo' | 'InProgress' | 'Completed';
 
   @IsOptional()
   @IsUUID()

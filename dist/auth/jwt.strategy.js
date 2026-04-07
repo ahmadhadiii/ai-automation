@@ -26,7 +26,7 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
     async validate(payload) {
         const user = await this.db
             .selectFrom('users')
-            .select(['id', 'email', 'role', 'tenant_id'])
+            .selectAll()
             .where('id', '=', payload.sub)
             .executeTakeFirst();
         if (!user) {

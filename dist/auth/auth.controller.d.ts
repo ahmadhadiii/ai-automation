@@ -8,21 +8,31 @@ export declare class AuthController {
         access_token: string;
         user: {
             email: string;
-            role: string;
             tenant_id: string;
+            organization_id: string;
             id: string;
+            password_hash: string;
+            first_name: string | null;
+            last_name: string | null;
+            role: string;
+            is_active: boolean;
             created_at: Date;
+            updated_at: Date;
         };
     }>;
     login(dto: LoginDto): Promise<{
         access_token: string;
         user: {
             email: string;
-            role: string;
             tenant_id: string;
+            organization_id: string;
             id: string;
+            first_name: string | null;
+            last_name: string | null;
+            role: string;
             is_active: boolean;
             created_at: Date;
+            updated_at: Date;
         };
     }>;
 }
