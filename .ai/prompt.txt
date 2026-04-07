@@ -46,12 +46,7 @@ src/
     database.service.ts
     migrate.ts
     migrations/
-      001_init.sql
       001_initial.ts
-      001_init_users.ts
-      002_create_users.ts
-      003_create_refresh_tokens.ts
-      004_fix_tasks_columns.ts
     types.ts
   main.ts
   notifications/
@@ -88,12 +83,7 @@ test.js
 tsconfig.json
 
 === EXISTING MIGRATIONS ===
-  - 001_init.sql
   - 001_initial.ts
-  - 001_init_users.ts
-  - 002_create_users.ts
-  - 003_create_refresh_tokens.ts
-  - 004_fix_tasks_columns.ts
 
 === KEY SOURCE FILES (current content) ===
 
@@ -870,37 +860,39 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 
 PHASE 4 — IMPLEMENT THE STORY
 
-STORY TO IMPLEMENT:
-Story Number: 1
-Title: Database Foundation
+STORY NUMBER: 1
+TITLE: Database Foundation
 
-Description:
-Establish the global database module, typed schema definitions, and a single migration that creates all required tables with constraints and indexes.
-
-Files to create:
+FILES TO CREATE:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-Files to modify:
+FILES TO MODIFY:
 - src/app.module.ts
 
-Acceptance Criteria:
+ACCEPTANCE CRITERIA:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
-- DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines interfaces for organizations, users, projects, tasks, comments, attachments, notifications, and audit_logs tables
-- Every table interface in types.ts includes tenant_id: string
+- DatabaseService extends Kysely<Database> and connects to PostgreSQL using DATABASE_URL environment variable
+- types.ts defines a Database interface including organizations, users, projects, and tasks tables
+- Each table interface includes tenant_id: string
 - Generated<> is used ONLY for id, created_at, updated_at, is_active, and read columns
-- 001_initial.ts creates organizations, users, projects, tasks, comments, attachments, notifications, and audit_logs tables in a single migration
-- organizations table has id uuid primary key default uuid_generate_v4(), name varchar(150) unique not null, created_at timestamptz default now()
-- users table has role CHECK constraint limited to ('Admin','ProjectManager','Member') and unique email
-- projects table has status CHECK constraint limited to ('Active','Archived') and UNIQUE (tenant_id, name)
-- tasks table has status CHECK constraint limited to ('ToDo','InProgress','Completed')
-- All foreign keys use ON DELETE CASCADE except tasks.assigned_to which uses ON DELETE RESTRICT
-- Indexes are created: idx_users_tenant_id, idx_users_email, idx_projects_tenant_id, idx_tasks_tenant_id, idx_tasks_project_id, idx_tasks_assigned_to
-- migrate.ts runs all pending migrations on application startup
+- 001_initial.ts creates organizations, users, projects, and tasks tables in a single migration file
+- organizations table has id UUID primary key default uuid_generate_v4(), unique name, and created_at default now()
+- users table has foreign key tenant_id referencing organizations(id) ON DELETE CASCADE
+- users.email is globally UNIQUE and indexed with idx_users_email
+- users has index idx_users_tenant on tenant_id
+- users.role has CHECK constraint limited to ('Admin','ProjectManager','Member')
+- projects has foreign key tenant_id referencing organizations(id) ON DELETE CASCADE
+- projects has UNIQUE (tenant_id, name) constraint
+- projects.status has CHECK constraint limited to ('Active','Archived')
+- tasks has foreign key project_id referencing projects(id) ON DELETE CASCADE
+- tasks has foreign key assigned_to referencing users(id) ON DELETE SET NULL
+- tasks.status has CHECK constraint limited to ('ToDo','InProgress','Completed')
+- tasks has indexes idx_tasks_tenant on tenant_id and idx_tasks_project on project_id
+- migrate.ts executes all pending migrations on application startup
 - app.module.ts imports DatabaseModule
 
 PHASE 5 — VERIFY BUILD

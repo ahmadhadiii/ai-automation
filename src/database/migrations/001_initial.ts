@@ -39,6 +39,13 @@ export async function up(db: Kysely<any>): Promise<void> {
       col.notNull().defaultTo(sql`now()`),
     )
     .addForeignKeyConstraint(
+      'fk_users_tenant',
+      ['tenant_id'],
+      'organizations',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
       'fk_users_org',
       ['organization_id'],
       'organizations',
@@ -67,6 +74,13 @@ export async function up(db: Kysely<any>): Promise<void> {
     )
     .addColumn('updated_at', sql`timestamptz`, (col) =>
       col.notNull().defaultTo(sql`now()`),
+    )
+    .addForeignKeyConstraint(
+      'fk_projects_tenant',
+      ['tenant_id'],
+      'organizations',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
     )
     .addForeignKeyConstraint(
       'fk_projects_org',
@@ -120,7 +134,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['assignee_id'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('restrict'),
+      (cb) => cb.onDelete('set null'),
     )
     .execute();
 
@@ -260,7 +274,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 
   // Indexes
   await db.schema
-    .createIndex('idx_users_tenant_id')
+    .createIndex('idx_users_tenant')
     .on('users')
     .column('tenant_id')
     .execute();
@@ -278,13 +292,13 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_tenant_id')
+    .createIndex('idx_tasks_tenant')
     .on('tasks')
     .column('tenant_id')
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_project_id')
+    .createIndex('idx_tasks_project')
     .on('tasks')
     .column('project_id')
     .execute();
