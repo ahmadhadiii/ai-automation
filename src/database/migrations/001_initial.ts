@@ -83,6 +83,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await sql`ALTER TABLE projects ADD CONSTRAINT chk_projects_status CHECK (status IN ('Active', 'Archived'))`.execute(db);
+  await sql`ALTER TABLE projects ADD CONSTRAINT uq_projects_tenant_name UNIQUE (tenant_id, name)`.execute(db);
 
   // Tasks
   await db.schema
@@ -117,7 +118,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['assignee_id'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('cascade'),
+      (cb) => cb.onDelete('set null'),
     )
     .execute();
 

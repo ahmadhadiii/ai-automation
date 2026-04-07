@@ -635,6 +635,7 @@ PHASE 3 — ARCHITECTURE RULES (follow exactly)
 GLOBAL GUARDS:
 Guards are registered globally via APP_GUARD in app.module.ts.
 NEVER add @UseGuards() to any controller or method — not even once.
+Adding @UseGuards() on a controller causes double-guard execution and auth bugs.
 
 AUTHENTICATION:
 JWT Payload into token: { sub: userId, email, role, tenant_id }
@@ -780,13 +781,61 @@ export interface RefreshTokensTable {
 }
 
 DATABASE PATTERNS:
-(Use exactly as defined above.)
+
+SELECT with pagination:
+  const page = Number(query.page) || 1;
+  const limit = Math.min(Number(query.limit) || 20, 100);
+  const offset = (page - 1) * limit;
+  const [{ count }] = await this.db.selectFrom('table').select(this.db.fn.count('id').as('count')).where('tenant_id', '=', tenantId).execute();
+  const data = await this.db.selectFrom('table').selectAll().where('tenant_id', '=', tenantId).orderBy('created_at', 'desc').limit(limit).offset(offset).execute();
+  return { data, meta: { total: Number(count), page, limit, totalPages: Math.ceil(Number(count) / limit) } };
+
+INSERT:
+  const record = await this.db.insertInto('table').values({ id: uuidv4(), tenant_id: tenantId, ...dto }).returningAll().executeTakeFirstOrThrow();
+
+UPDATE:
+  const record = await this.db.updateTable('table').set({ ...dto, updated_at: new Date() }).where('id', '=', id).where('tenant_id', '=', tenantId).returningAll().executeTakeFirst();
+  if (!record) throw new NotFoundException('Not found');
+
+DELETE:
+  const result = await this.db.deleteFrom('table').where('id', '=', id).where('tenant_id', '=', tenantId).executeTakeFirst();
+  if (!result.numDeletedRows) throw new NotFoundException('Not found');
+
+SELECT ONE:
+  const record = await this.db.selectFrom('table').selectAll().where('id', '=', id).where('tenant_id', '=', tenantId).executeTakeFirst();
+  if (!record) throw new NotFoundException('Not found');
 
 CONTROLLER PATTERN — NO @UseGuards() anywhere:
-(Use exactly as defined above.)
+@Controller('resource')
+export class ResourceController {
+  constructor(private readonly service: ResourceService) {}
+  @Get() findAll(@Request() req, @Query() query: any) { return this.service.findAll(req.user.tenant_id, query); }
+  @Post() @HttpCode(HttpStatus.CREATED) create(@Request() req, @Body() dto: CreateDto) { return this.service.create(req.user.id, req.user.tenant_id, dto); }
+  @Get(':id') findOne(@Request() req, @Param('id') id: string) { return this.service.findOne(id, req.user.tenant_id); }
+  @Put(':id') update(@Request() req, @Param('id') id: string, @Body() dto: UpdateDto) { return this.service.update(id, req.user.tenant_id, dto); }
+  @Delete(':id') @Roles('Admin') @HttpCode(HttpStatus.NO_CONTENT) remove(@Request() req, @Param('id') id: string) { return this.service.remove(id, req.user.tenant_id); }
+}
 
 MODULE PATTERN:
-(Use exactly as defined above.)
+@Module({
+  controllers: [ResourceController],
+  providers: [ResourceService],
+  exports: [ResourceService],
+})
+export class ResourceModule {}
+
+app.module.ts — every new module MUST be added to imports[]:
+@Module({
+  imports: [
+    DatabaseModule,
+    AuthModule,
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
+})
+export class AppModule {}
 
 FILES THAT MUST NEVER BE DUPLICATED:
 Only ONE DatabaseModule: src/database/database.module.ts
@@ -795,19 +844,35 @@ Only ONE app.module.ts: src/app.module.ts
 NEVER create: src/modules/database/, src/database/kysely.module.ts, src/database/database.types.ts
 
 ADDING A NEW MODULE CHECKLIST:
-(Apply if needed.)
+1. Create src/database/database.module.ts
+2. Create src/database/database.service.ts
+3. Create src/database/types.ts
+4. Create src/database/migrations/001_initial.ts
+5. Create src/database/migrate.ts
+6. Verify every query has .where('tenant_id', '=', tenantId) where applicable
+7. Add DatabaseModule to imports[] in src/app.module.ts
 
 ABSOLUTE RULES — VIOLATION MEANS FAILURE:
-(Apply all 13 rules exactly.)
+1. NEVER add @UseGuards() to any controller
+2. Use @Public() for unauthenticated routes
+3. Use req.user.id never req.user.sub
+4. EVERY query must filter by tenant_id
+5. Use uuidv4() for all IDs
+6. All list endpoints return { data, meta: { total, page, limit, totalPages } }
+7. Register hardcodes role: 'Member'
+8. Task status: 'ToDo', 'InProgress', 'Completed'
+9. Project status: 'Active', 'Archived'
+10. Roles: 'Admin', 'ProjectManager', 'Member'
+11. Every new module added to app.module.ts imports[]
+12. NEVER .select(['col1','col2']) — use .selectAll()
+13. EVERY table interface has tenant_id: string
 
 PHASE 4 — IMPLEMENT THE STORY
 
-STORY TO IMPLEMENT:
-Story Number: 1
-Title: Database Foundation
+Story 1: Database Foundation
 
 Description:
-Establish the global database module, full schema types, and a single migration that creates all tables with constraints and indexes.
+Establishes the global Kysely database module, full schema types, and a single migration creating all application tables with constraints and indexes.
 
 Files to create:
 - src/database/database.module.ts
@@ -822,18 +887,18 @@ Files to modify:
 Acceptance Criteria:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines Database interface including tables: organizations, users, projects, tasks, comments, notifications, audit_logs — every table except organizations has tenant_id: string (NOT Generated<string>)
-- Generated<> is used ONLY for: id, created_at, updated_at, is_active, read columns
-- 001_initial.ts creates ALL tables (organizations, users, projects, tasks, comments, notifications, audit_logs) with correct columns, CHECK constraints for roles and statuses, foreign keys with ON DELETE CASCADE, and all indexes defined in requirements
-- users.role CHECK constraint enforces exactly: 'Admin','ProjectManager','Member'
-- projects.status CHECK constraint enforces exactly: 'Active','Archived'
-- tasks.status CHECK constraint enforces exactly: 'ToDo','InProgress','Completed'
-- All tables include created_at DEFAULT now() and updated_at DEFAULT now()
-- Indexes created: idx_users_tenant, idx_users_email, idx_projects_tenant, idx_tasks_tenant, idx_tasks_project, idx_tasks_assignee, idx_comments_tenant, idx_comments_task
-- migrate.ts executes all pending migrations on application bootstrap
+- types.ts defines Database interface including organizations, users, projects, tasks tables
+- Every table interface includes tenant_id: string except organizations which does not include tenant_id
+- Generated<> is used ONLY on id, created_at, updated_at, and is_active columns
+- 001_initial.ts creates organizations, users, projects, and tasks tables with all columns, constraints, foreign keys, CHECK constraints, and indexes exactly as defined in the specification
+- users.role has CHECK constraint allowing only 'Admin','ProjectManager','Member'
+- projects.status has CHECK constraint allowing only 'Active','Archived'
+- tasks.status has CHECK constraint allowing only 'ToDo','InProgress','Completed'
+- projects table has UNIQUE (tenant_id, name) constraint
+- All foreign keys use ON DELETE CASCADE except tasks.assigned_to which uses ON DELETE SET NULL
+- Indexes exist on users(tenant_id), users(email), projects(tenant_id), tasks(tenant_id), tasks(project_id), tasks(assigned_to)
+- migrate.ts runs all pending migrations on application startup
 - app.module.ts imports DatabaseModule
-
-Implement everything fully before proceeding.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
@@ -851,7 +916,7 @@ After push succeeds make this HTTP POST request to trigger the next story:
   Content-Type: application/json
   Body:
   {
-    "project": "ai-automation",
+    "project": "[object Object]",
     "webhookUrl": "http://localhost:5678/webhook-test/ai%20automation",
     "state": {
       "completed_stories": [1],
