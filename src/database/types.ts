@@ -52,7 +52,7 @@ export interface TaskTable {
   status: 'ToDo' | 'InProgress' | 'Completed';
   assignee_id: string | null;
   created_by: string;
-  due_date: Date | null;
+  due_date: string | null;
   tenant_id: string;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -106,7 +106,7 @@ export interface RefreshTokensTable {
   id: Generated<string>;
   user_id: string;
   token_hash: string;
-  expires_at: Date;
+  expires_at: string;
   tenant_id: string;
   created_at: Generated<Date>;
 }
