@@ -1,5 +1,5 @@
 === COMPLETED STORIES ===
-Stories already implemented: 1, 2
+Stories already implemented: 1, 2, 3
 Do NOT re-implement these. Build on top of existing code.
 
 === CURRENT REPO FILE TREE ===
@@ -263,6 +263,7 @@ export interface AuditLogsTable {
 
 export interface RefreshTokensTable {
   id: Generated<string>;
+  tenant_id: string;
   user_id: string;
   token: string;
   expires_at: Date;
@@ -346,6 +347,8 @@ export class AuthService {
         id,
         email: dto.email,
         password_hash,
+        first_name: dto.first_name || '',
+        last_name: dto.last_name || '',
         role: 'Member',
         tenant_id: dto.tenant_id,
         organization_id: dto.organization_id,
@@ -515,7 +518,7 @@ export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
 
 
 --- src/auth/dto/register.dto.ts ---
-import { IsEmail, IsString, MinLength, IsUUID } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsUUID, IsOptional } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -530,6 +533,14 @@ export class RegisterDto {
 
   @IsUUID()
   organization_id: string;
+
+  @IsOptional()
+  @IsString()
+  first_name?: string;
+
+  @IsOptional()
+  @IsString()
+  last_name?: string;
 }
 
 
@@ -645,7 +656,7 @@ REGISTRATION RULE:
 Register endpoint NEVER accepts role from body. Hardcode: role: 'Member'
 
 KYSELY SELECT RULES:
-NEVER: .select(['id', 'email']) — Kysely rejects arrays
+NEVER: .select(['id', 'email']) — TypeScript error, Kysely rejects arrays
 CORRECT: .selectAll()
 CORRECT: .select('id').select('email')
 
@@ -769,82 +780,84 @@ export interface RefreshTokensTable {
 }
 
 DATABASE PATTERNS:
-SELECT with pagination:
-  const page = Number(query.page) || 1;
-  const limit = Math.min(Number(query.limit) || 20, 100);
-  const offset = (page - 1) * limit;
-  const [{ count }] = await this.db.selectFrom('table').select(this.db.fn.count('id').as('count')).where('tenant_id', '=', tenantId).execute();
-  const data = await this.db.selectFrom('table').selectAll().where('tenant_id', '=', tenantId).orderBy('created_at', 'desc').limit(limit).offset(offset).execute();
-  return { data, meta: { total: Number(count), page, limit, totalPages: Math.ceil(Number(count) / limit) } };
-
-INSERT:
-  const record = await this.db.insertInto('table').values({ id: uuidv4(), tenant_id: tenantId, ...dto }).returningAll().executeTakeFirstOrThrow();
-
-UPDATE:
-  const record = await this.db.updateTable('table').set({ ...dto, updated_at: new Date() }).where('id', '=', id).where('tenant_id', '=', tenantId).returningAll().executeTakeFirst();
-  if (!record) throw new NotFoundException('Not found');
-
-DELETE:
-  const result = await this.db.deleteFrom('table').where('id', '=', id).where('tenant_id', '=', tenantId).executeTakeFirst();
-  if (!result.numDeletedRows) throw new NotFoundException('Not found');
-
-SELECT ONE:
-  const record = await this.db.selectFrom('table').selectAll().where('id', '=', id).where('tenant_id', '=', tenantId).executeTakeFirst();
-  if (!record) throw new NotFoundException('Not found');
+(Use exactly as defined above.)
 
 CONTROLLER PATTERN — NO @UseGuards() anywhere:
-@Controller('resource')
-export class ResourceController {
-  constructor(private readonly service: ResourceService) {}
-  @Get() findAll(@Request() req, @Query() query: any) { return this.service.findAll(req.user.tenant_id, query); }
-  @Post() @HttpCode(HttpStatus.CREATED) create(@Request() req, @Body() dto: CreateDto) { return this.service.create(req.user.id, req.user.tenant_id, dto); }
-  @Get(':id') findOne(@Request() req, @Param('id') id: string) { return this.service.findOne(id, req.user.tenant_id); }
-  @Put(':id') update(@Request() req, @Param('id') id: string, @Body() dto: UpdateDto) { return this.service.update(id, req.user.tenant_id, dto); }
-  @Delete(':id') @Roles('Admin') @HttpCode(HttpStatus.NO_CONTENT) remove(@Request() req, @Param('id') id: string) { return this.service.remove(id, req.user.tenant_id); }
-}
+(Use exactly as defined above.)
 
 MODULE PATTERN:
-@Module({
-  controllers: [ResourceController],
-  providers: [ResourceService],
-  exports: [ResourceService],
-})
-export class ResourceModule {}
+(Use exactly as defined above.)
 
 FILES THAT MUST NEVER BE DUPLICATED:
 Only ONE DatabaseModule: src/database/database.module.ts
 Only ONE types.ts: src/database/types.ts
+Only ONE app.module.ts: src/app.module.ts
 NEVER create: src/modules/database/, src/database/kysely.module.ts, src/database/database.types.ts
 
+ADDING A NEW MODULE CHECKLIST:
+(Apply if needed.)
+
 ABSOLUTE RULES — VIOLATION MEANS FAILURE:
-1. NEVER add @UseGuards() to any controller
-2. Use @Public() for unauthenticated routes
-3. Use req.user.id never req.user.sub
-4. EVERY query must filter by tenant_id
-5. Use uuidv4() for all IDs
-6. All list endpoints return { data, meta: { total, page, limit, totalPages } }
-7. Register hardcodes role: 'Member'
-8. Task status: 'ToDo', 'InProgress', 'Completed'
-9. Project status: 'Active', 'Archived'
-10. Roles: 'Admin', 'ProjectManager', 'Member'
-11. Every new module added to app.module.ts imports[]
-12. NEVER .select(['col1','col2']) — use .selectAll()
-13. EVERY table interface has tenant_id: string
+(Apply all 13 rules exactly.)
 
 PHASE 4 — IMPLEMENT THE STORY
-Read the STORY TO IMPLEMENT at the top carefully.
-Implement every file in files_to_create.
-Modify every file in files_to_modify.
-Meet every acceptance criterion before proceeding.
+
+STORY TO IMPLEMENT:
+Story Number: 1
+Title: Database Foundation
+
+Description:
+Establish the global database module, full schema types, and a single migration that creates all tables with constraints and indexes.
+
+Files to create:
+- src/database/database.module.ts
+- src/database/database.service.ts
+- src/database/types.ts
+- src/database/migrations/001_initial.ts
+- src/database/migrate.ts
+
+Files to modify:
+- src/app.module.ts
+
+Acceptance Criteria:
+- DatabaseModule is decorated with @Global() and exports DatabaseService
+- DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
+- types.ts defines Database interface including tables: organizations, users, projects, tasks, comments, notifications, audit_logs — every table except organizations has tenant_id: string (NOT Generated<string>)
+- Generated<> is used ONLY for: id, created_at, updated_at, is_active, read columns
+- 001_initial.ts creates ALL tables (organizations, users, projects, tasks, comments, notifications, audit_logs) with correct columns, CHECK constraints for roles and statuses, foreign keys with ON DELETE CASCADE, and all indexes defined in requirements
+- users.role CHECK constraint enforces exactly: 'Admin','ProjectManager','Member'
+- projects.status CHECK constraint enforces exactly: 'Active','Archived'
+- tasks.status CHECK constraint enforces exactly: 'ToDo','InProgress','Completed'
+- All tables include created_at DEFAULT now() and updated_at DEFAULT now()
+- Indexes created: idx_users_tenant, idx_users_email, idx_projects_tenant, idx_tasks_tenant, idx_tasks_project, idx_tasks_assignee, idx_comments_tenant, idx_comments_task
+- migrate.ts executes all pending migrations on application bootstrap
+- app.module.ts imports DatabaseModule
+
+Implement everything fully before proceeding.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
 Fix all errors. Never use @ts-ignore. Repeat until zero errors.
+Do NOT proceed to Phase 6 with a broken build.
 
 PHASE 6 — COMMIT AND PUSH
+Run in exact order:
   git add -A
-  git commit -m "feat: story-[story_number] [title]"
+  git commit -m "feat: story-1 Database Foundation"
   git push origin HEAD
 
-After push output exactly:
-=== STORY [story_number] COMPLETE ===
+After push succeeds make this HTTP POST request to trigger the next story:
+  POST http://localhost:5678/webhook-test/ai%20automation
+  Content-Type: application/json
+  Body:
+  {
+    "project": "ai-automation",
+    "webhookUrl": "http://localhost:5678/webhook-test/ai%20automation",
+    "state": {
+      "completed_stories": [1],
+      "current_story": null
+    }
+  }
+
+After POST succeeds output exactly:
+=== STORY 1 COMPLETE — NEXT STORY TRIGGERED ===
