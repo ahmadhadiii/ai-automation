@@ -829,11 +829,11 @@ export class ResourceController {
 
 MODULE PATTERN:
 @Module({
-  controllers: [],
-  providers: [],
-  exports: [],
+  controllers: [ResourceController],
+  providers: [ResourceService],
+  exports: [ResourceService],
 })
-export class ModuleName {}
+export class ResourceModule {}
 
 app.module.ts — every new module MUST be added to imports[]:
 @Module({
@@ -884,7 +884,7 @@ PHASE 4 — IMPLEMENT THE STORY
 STORY TO IMPLEMENT:
 Story Number: 1
 Title: Database Foundation
-Description: Establish global Kysely database integration with all table types and a single migration creating the complete schema.
+Description: Establish the global database layer with Kysely, define all table types, and create the complete initial migration for the entire system.
 
 FILES TO CREATE:
 - src/database/database.module.ts
@@ -899,15 +899,18 @@ FILES TO MODIFY:
 ACCEPTANCE CRITERIA:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using DATABASE_URL environment variable
-- types.ts defines Database interface including organizations, users, projects, tasks tables
-- Every table interface except organizations includes tenant_id: string
-- Generated<> is used ONLY on id, created_at, updated_at, is_active columns
-- 001_initial.ts creates organizations, users, projects, tasks tables with all columns, constraints, foreign keys, check constraints, defaults, and indexes exactly as specified
-- users.role has CHECK constraint restricting values to ('Admin','ProjectManager','Member')
-- projects.status has CHECK constraint restricting values to ('Active','Archived') with default 'Active'
-- tasks.status has CHECK constraint restricting values to ('ToDo','InProgress','Completed') with default 'ToDo'
+- types.ts defines Database interface including tables: organizations, users, projects, tasks, audit_logs
+- All tables except organizations include tenant_id: string
+- Generated<> is used ONLY on: id, created_at, updated_at, is_active
+- organizations table includes: id, name, created_at, updated_at
+- users table includes: id, tenant_id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at
+- projects table includes: id, tenant_id, name, description, status, created_by, created_at, updated_at
+- tasks table includes: id, tenant_id, project_id, title, description, status, assigned_to, created_by, created_at, updated_at
+- audit_logs table includes: id, tenant_id, user_id, action, entity, entity_id, metadata (jsonb), created_at
+- 001_initial.ts creates ALL tables in a single migration with correct primary keys, foreign keys, ON DELETE rules, CHECK constraints, and indexes
+- users.email is UNIQUE and indexed
+- Indexes exist on users.tenant_id, projects.tenant_id, tasks.tenant_id, tasks.project_id, tasks.assigned_to, audit_logs.tenant_id
 - All foreign keys enforce ON DELETE CASCADE except tasks.assigned_to which uses ON DELETE SET NULL
-- Indexes created: idx_users_tenant_id, idx_projects_tenant_id, idx_tasks_project_id, idx_tasks_assigned_to, idx_tasks_tenant_id
 - migrate.ts executes all pending migrations on application bootstrap
 - app.module.ts imports DatabaseModule
 
