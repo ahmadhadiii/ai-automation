@@ -24,7 +24,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     )
     .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('organization_id', 'uuid', (col) => col.notNull())
-    .addColumn('email', 'varchar', (col) => col.notNull().unique())
+    .addColumn('email', 'varchar', (col) => col.notNull())
     .addColumn('password_hash', 'varchar', (col) => col.notNull())
     .addColumn('first_name', 'varchar', (col) => col.notNull())
     .addColumn('last_name', 'varchar', (col) => col.notNull())
@@ -55,6 +55,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await sql`ALTER TABLE users ADD CONSTRAINT chk_users_role CHECK (role IN ('Admin', 'ProjectManager', 'Member'))`.execute(db);
+  await sql`ALTER TABLE users ADD CONSTRAINT uq_users_tenant_email UNIQUE (tenant_id, email)`.execute(db);
 
   // Projects
   await db.schema
@@ -350,12 +351,6 @@ export async function up(db: Kysely<any>): Promise<void> {
     .createIndex('idx_users_tenant')
     .on('users')
     .column('tenant_id')
-    .execute();
-
-  await db.schema
-    .createIndex('idx_users_email')
-    .on('users')
-    .column('email')
     .execute();
 
   await db.schema
