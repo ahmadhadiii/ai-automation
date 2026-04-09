@@ -870,35 +870,34 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 
 PHASE 4 — IMPLEMENT THE STORY
 
-STORY TO IMPLEMENT:
-Story 1 — Database Foundation
+STORY NUMBER: 1
+TITLE: Database Foundation
 
-Description:
-Establish the complete Kysely database infrastructure with all tables, types, and a single initial migration covering the entire schema.
+DESCRIPTION:
+Establishes the global Kysely database module, full schema types, and a single migration that creates all tables with proper constraints and indexes.
 
-Files to create:
+FILES TO CREATE:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-Files to modify:
+FILES TO MODIFY:
 - src/app.module.ts
 
-Acceptance criteria:
+ACCEPTANCE CRITERIA:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines Database interface including organizations, users, projects, tasks, comments, attachments, notifications, and audit_logs tables
-- All tables except organizations include tenant_id: string (non-Generated)
-- Generated<> is used ONLY on: id, created_at, updated_at, is_active, read columns
-- 001_initial.ts creates ALL tables with UUID primary keys defaulting to uuid_generate_v4()
-- users.role has CHECK constraint limited to ('Admin','ProjectManager','Member')
-- projects.status has CHECK constraint limited to ('Active','Archived')
-- tasks.status has CHECK constraint limited to ('ToDo','InProgress','Completed')
-- All foreign keys enforce ON DELETE CASCADE except tasks.assigned_to which uses ON DELETE SET NULL
-- Indexes exist for: users(tenant_id), users(email), projects(tenant_id), tasks(tenant_id), tasks(project_id), tasks(assigned_to), comments(task_id), attachments(task_id), notifications(user_id), audit_logs(tenant_id)
-- migrate.ts executes all pending migrations on application startup
+- types.ts defines Database interface including tables: organizations, users, projects, tasks, comments, attachments, notifications, audit_logs
+- Every table interface includes tenant_id: string (organizations table also includes tenant_id: string for consistency)
+- Generated<> is used ONLY on id, created_at, updated_at, is_active, and read columns
+- 001_initial.ts creates ALL tables in a single migration with correct PKs, FKs, ON DELETE rules, CHECK constraints for role and status enums, and required indexes
+- users table has UNIQUE(tenant_id,email) and INDEX on tenant_id
+- projects table has INDEX(tenant_id) and INDEX(tenant_id,status)
+- tasks table has INDEX(tenant_id), INDEX(project_id), INDEX(assigned_to)
+- All foreign keys enforce tenant isolation via tenant_id presence and ON DELETE CASCADE where specified
+- migrate.ts runs all pending migrations on application startup
 - app.module.ts imports DatabaseModule
 
 PHASE 5 — VERIFY BUILD

@@ -11,6 +11,7 @@ export interface Database {
   notifications: NotificationsTable;
   audit_logs: AuditLogsTable;
   refresh_tokens: RefreshTokensTable;
+  dashboard_views: DashboardViewsTable;
 }
 
 export interface OrganizationsTable {
@@ -75,7 +76,7 @@ export interface AttachmentsTable {
   id: Generated<string>;
   tenant_id: string;
   task_id: string;
-  uploaded_by: string | null;
+  uploaded_by: string;
   file_name: string;
   file_path: string;
   file_size: number;
@@ -122,4 +123,14 @@ export interface RefreshTokensTable {
   token: string;
   expires_at: Date;
   created_at: Generated<Date>;
+}
+
+export interface DashboardViewsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  user_id: string;
+  name: string;
+  config: any | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
 }

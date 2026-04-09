@@ -421,9 +421,21 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
+    .createIndex('idx_attachments_task_id')
+    .on('attachments')
+    .column('task_id')
+    .execute();
+
+  await db.schema
     .createIndex('idx_notifications_tenant_id')
     .on('notifications')
     .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_notifications_user_id')
+    .on('notifications')
+    .column('user_id')
     .execute();
 
   await db.schema
