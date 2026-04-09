@@ -210,7 +210,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['uploaded_by'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('set null'),
+      (cb) => cb.onDelete('cascade'),
     )
     .addForeignKeyConstraint(
       'fk_attachments_tenant',
@@ -288,7 +288,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['user_id'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('set null'),
+      (cb) => cb.onDelete('cascade'),
     )
     .execute();
 
@@ -347,7 +347,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 
   // Indexes
   await db.schema
-    .createIndex('idx_users_tenant_id')
+    .createIndex('idx_users_tenant')
     .on('users')
     .column('tenant_id')
     .execute();
@@ -371,19 +371,19 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_tenant_id')
+    .createIndex('idx_tasks_tenant')
     .on('tasks')
     .column('tenant_id')
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_project_id')
+    .createIndex('idx_tasks_project')
     .on('tasks')
     .column('project_id')
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_assigned_to')
+    .createIndex('idx_tasks_assignee')
     .on('tasks')
     .column('assignee_id')
     .execute();
