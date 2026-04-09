@@ -4,6 +4,7 @@ export interface Database {
   organizations: OrganizationsTable;
   users: UsersTable;
   projects: ProjectsTable;
+  project_members: ProjectMembersTable;
   tasks: TasksTable;
   comments: CommentsTable;
   attachments: AttachmentsTable;
@@ -102,6 +103,15 @@ export interface AuditLogsTable {
   entity_type: string;
   entity_id: string | null;
   metadata: any | null;
+  created_at: Generated<Date>;
+}
+
+export interface ProjectMembersTable {
+  id: Generated<string>;
+  tenant_id: string;
+  project_id: string;
+  user_id: string;
+  role: string;
   created_at: Generated<Date>;
 }
 

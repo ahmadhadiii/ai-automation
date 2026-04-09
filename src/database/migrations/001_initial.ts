@@ -250,6 +250,37 @@ export async function up(db: Kysely<any>): Promise<void> {
     )
     .execute();
 
+  // Project Members
+  await db.schema
+    .createTable('project_members')
+    .addColumn('id', 'uuid', (col) =>
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
+    )
+    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
+    .addColumn('project_id', 'uuid', (col) => col.notNull())
+    .addColumn('user_id', 'uuid', (col) => col.notNull())
+    .addColumn('role', 'varchar', (col) => col.notNull().defaultTo('Member'))
+    .addColumn('created_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addForeignKeyConstraint(
+      'fk_project_members_project',
+      ['project_id'],
+      'projects',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_project_members_user',
+      ['user_id'],
+      'users',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .execute();
+
+  await sql`ALTER TABLE project_members ADD CONSTRAINT uq_project_members UNIQUE (project_id, user_id)`.execute(db);
+
   // Refresh Tokens
   await db.schema
     .createTable('refresh_tokens')
@@ -308,6 +339,18 @@ export async function up(db: Kysely<any>): Promise<void> {
     .on('tasks')
     .column('assignee_id')
     .execute();
+
+  await db.schema
+    .createIndex('idx_project_members_tenant')
+    .on('project_members')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_project_members_project')
+    .on('project_members')
+    .column('project_id')
+    .execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
@@ -317,6 +360,7 @@ export async function down(db: Kysely<any>): Promise<void> {
   await db.schema.dropTable('attachments').execute();
   await db.schema.dropTable('comments').execute();
   await db.schema.dropTable('tasks').execute();
+  await db.schema.dropTable('project_members').execute();
   await db.schema.dropTable('projects').execute();
   await db.schema.dropTable('users').execute();
   await db.schema.dropTable('organizations').execute();
