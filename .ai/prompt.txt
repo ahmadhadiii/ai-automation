@@ -221,7 +221,7 @@ export interface AttachmentsTable {
   id: Generated<string>;
   tenant_id: string;
   task_id: string;
-  uploaded_by: string;
+  uploaded_by: string | null;
   file_name: string;
   file_path: string;
   file_size: number;
@@ -824,19 +824,6 @@ MODULE PATTERN:
 })
 export class ResourceModule {}
 
-app.module.ts — every new module MUST be added to imports[]:
-@Module({
-  imports: [
-    DatabaseModule,
-    AuthModule,
-  ],
-  providers: [
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: RolesGuard },
-  ],
-})
-export class AppModule {}
-
 FILES THAT MUST NEVER BE DUPLICATED:
 Only ONE DatabaseModule: src/database/database.module.ts
 Only ONE types.ts: src/database/types.ts
@@ -870,10 +857,10 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 
 PHASE 4 — IMPLEMENT THE STORY
 
-STORY 1 — Database Foundation
-
-Description:
-Establish the global Kysely database connection, define all table types, and create a single initial migration that creates every table required by the system.
+STORY TO IMPLEMENT:
+Story Number: 1
+Title: Database Foundation
+Description: Establish the global database module, Kysely types, and a single migration that creates all tables with proper constraints and indexes.
 
 Files to create:
 - src/database/database.module.ts
@@ -888,15 +875,18 @@ Files to modify:
 Acceptance Criteria:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines Database interface including organizations, users, projects, tasks, comments, attachments, notifications, audit_logs, and refresh_tokens tables
-- Every table interface includes tenant_id: string (including organizations where tenant_id equals id)
-- Generated<> is used ONLY for: id, created_at, updated_at, is_active, and read columns
-- 001_initial.ts creates ALL tables with correct columns, CHECK constraints for role and status enums, foreign keys, ON DELETE rules, unique constraints, and indexes exactly as defined in the PRD
-- users table has UNIQUE (tenant_id, email) and INDEX (tenant_id)
-- projects table has INDEX (tenant_id) and INDEX (tenant_id, status)
-- tasks table has INDEX (tenant_id), INDEX (project_id), and INDEX (assignee_id)
-- All foreign keys enforce ON DELETE CASCADE except tasks.assignee_id which uses ON DELETE SET NULL
-- migrate.ts executes all pending migrations on application startup
+- types.ts defines interfaces for organizations, users, projects, tasks, comments tables
+- All tables except organizations include tenant_id: string
+- Generated<> is used ONLY on id, created_at, updated_at columns
+- Database interface maps each table name to its corresponding TypeScript interface
+- 001_initial.ts creates uuid-ossp extension if not exists
+- 001_initial.ts creates organizations table with id uuid primary key default uuid_generate_v4(), name varchar(255) not null, created_at timestamptz default now()
+- 001_initial.ts creates users table with role check constraint limited to ('Admin','ProjectManager','Member'), unique email, foreign key tenant_id references organizations(id) on delete cascade
+- 001_initial.ts creates projects table with status check constraint limited to ('Active','Archived') and foreign key tenant_id references organizations(id) on delete cascade
+- 001_initial.ts creates tasks table with status check constraint limited to ('ToDo','InProgress','Completed'), foreign keys project_id references projects(id) on delete cascade, assigned_to references users(id) on delete set null, tenant_id references organizations(id) on delete cascade
+- 001_initial.ts creates comments table with foreign keys task_id references tasks(id) on delete cascade, user_id references users(id) on delete cascade, tenant_id references organizations(id) on delete cascade
+- 001_initial.ts creates indexes on users(tenant_id), users(email), projects(tenant_id), tasks(tenant_id), tasks(project_id), comments(tenant_id), comments(task_id)
+- migrate.ts runs all pending migrations on application bootstrap
 - app.module.ts imports DatabaseModule
 
 PHASE 5 — VERIFY BUILD
@@ -911,17 +901,17 @@ Run in exact order:
   git push origin HEAD
 
 After push succeeds make this HTTP POST request to trigger the next story:
-POST http://localhost:5678/webhook/ai automation
-Content-Type: application/json
-Body:
-{
-  "project": "[object Object]",
-  "webhookUrl": "http://localhost:5678/webhook/ai automation",
-  "state": {
-    "completed_stories": [1],
-    "current_story": null
+  POST http://localhost:5678/webhook/ai automation
+  Content-Type: application/json
+  Body:
+  {
+    "project": "[object Object]",
+    "webhookUrl": "http://localhost:5678/webhook/ai automation",
+    "state": {
+      "completed_stories": [1],
+      "current_story": null
+    }
   }
-}
 
 After POST succeeds output exactly:
 === STORY 1 COMPLETE — NEXT STORY TRIGGERED ===
