@@ -174,7 +174,7 @@ export interface UsersTable {
   password_hash: string;
   first_name: string;
   last_name: string;
-  role: string;
+  role: 'Admin' | 'ProjectManager' | 'Member';
   is_active: Generated<boolean>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -781,7 +781,6 @@ export interface RefreshTokensTable {
 }
 
 DATABASE PATTERNS:
-
 SELECT with pagination:
   const page = Number(query.page) || 1;
   const limit = Math.min(Number(query.limit) || 20, 100);
@@ -875,7 +874,7 @@ Story Number: 1
 Title: Database Foundation
 
 Description:
-Establishes the global Kysely database connection, defines all table types, and creates the complete initial schema in a single migration.
+Establish the global database layer using Kysely with full schema types, initial migration creating all tables, and automatic migration runner.
 
 Files to create:
 - src/database/database.module.ts
@@ -889,23 +888,19 @@ Files to modify:
 
 Acceptance Criteria:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
-- DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines Database interface including organizations, users, projects, tasks tables
-- All tables except organizations include tenant_id: string in types.ts
-- Generated<> is used ONLY on id, created_at, updated_at, is_active columns
-- users.role is typed as 'Admin' | 'ProjectManager' | 'Member'
-- projects.status is typed as 'Active' | 'Archived'
-- tasks.status is typed as 'ToDo' | 'InProgress' | 'Completed'
-- 001_initial.ts creates organizations, users, projects, tasks tables with all columns defined in PRD
-- users.role has CHECK constraint enforcing ('Admin','ProjectManager','Member')
-- projects.status has CHECK constraint enforcing ('Active','Archived')
-- tasks.status has CHECK constraint enforcing ('ToDo','InProgress','Completed')
-- All foreign keys include proper ON DELETE rules as specified
-- Indexes are created on users(tenant_id), users(email), projects(tenant_id), projects(status), tasks(tenant_id), tasks(project_id), tasks(assignee_id), tasks(status)
-- migrate.ts runs all pending migrations using Kysely Migrator on application startup
+- DatabaseService extends Kysely<Database> and connects using DATABASE_URL environment variable
+- types.ts defines interfaces for organizations, users, projects, tasks, comments, attachments, notifications, and audit_logs tables
+- Every table interface includes tenant_id: string except organizations table
+- Generated<> is used ONLY on id, created_at, updated_at, is_active, and read columns
+- 001_initial.ts creates ALL tables (organizations, users, projects, tasks, comments, attachments, notifications, audit_logs) with correct columns, constraints, foreign keys, cascade rules, and indexes exactly as specified
+- All foreign keys enforce ON DELETE CASCADE where defined in requirements
+- Indexes exist for all specified indexed columns in requirements
+- migrate.ts executes all pending migrations programmatically using Kysely Migrator
 - app.module.ts imports DatabaseModule
 
-Implement every file and requirement exactly as specified above before proceeding.
+Implement every file listed above.
+Modify every file listed above.
+Meet every acceptance criterion before proceeding.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit

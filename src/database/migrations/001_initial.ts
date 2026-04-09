@@ -141,7 +141,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['assignee_id'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('set null'),
+      (cb) => cb.onDelete('cascade'),
     )
     .execute();
 
@@ -348,7 +348,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_assignee_id')
+    .createIndex('idx_tasks_assigned_to')
     .on('tasks')
     .column('assignee_id')
     .execute();
