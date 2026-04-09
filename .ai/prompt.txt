@@ -150,6 +150,7 @@ export interface Database {
   organizations: OrganizationsTable;
   users: UsersTable;
   projects: ProjectsTable;
+  project_members: ProjectMembersTable;
   tasks: TasksTable;
   comments: CommentsTable;
   attachments: AttachmentsTable;
@@ -248,6 +249,15 @@ export interface AuditLogsTable {
   entity_type: string;
   entity_id: string | null;
   metadata: any | null;
+  created_at: Generated<Date>;
+}
+
+export interface ProjectMembersTable {
+  id: Generated<string>;
+  tenant_id: string;
+  project_id: string;
+  user_id: string;
+  role: string;
   created_at: Generated<Date>;
 }
 
@@ -625,6 +635,7 @@ PHASE 3 — ARCHITECTURE RULES (follow exactly)
 GLOBAL GUARDS:
 Guards are registered globally via APP_GUARD in app.module.ts.
 NEVER add @UseGuards() to any controller or method — not even once.
+Adding @UseGuards() on a controller causes double-guard execution and auth bugs.
 
 AUTHENTICATION:
 JWT Payload into token: { sub: userId, email, role, tenant_id }
@@ -862,7 +873,9 @@ PHASE 4 — IMPLEMENT THE STORY
 STORY TO IMPLEMENT:
 Story Number: 1
 Title: Database Foundation
-Description: Establishes the global database module with Kysely, complete type definitions, and a single migration creating all tables.
+
+Description:
+Establish the global Kysely database module with full schema types and a single initial migration creating all tables.
 
 Files to create:
 - src/database/database.module.ts
@@ -876,17 +889,21 @@ Files to modify:
 
 Acceptance Criteria:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
-- DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines interfaces for organizations, users, projects, tasks, comments, attachments, notifications, and audit_logs tables
-- Every table except organizations includes tenant_id: string
-- Generated<> is used ONLY for id, created_at, updated_at, is_active, and read columns
-- 001_initial.ts creates organizations, users, projects, tasks, comments, attachments, notifications, and audit_logs tables with all columns, constraints, foreign keys, check constraints, and indexes as defined in the SRS
-- All foreign keys include proper ON DELETE behavior exactly as specified
-- Indexes are created for every tenant_id column and for tasks.project_id and tasks.assignee_id
-- migrate.ts runs all pending migrations on application startup
+- DatabaseService extends Kysely<Database> and connects using DATABASE_URL environment variable
+- types.ts defines Database interface with tables: organizations, users, projects, tasks
+- All tables except organizations include tenant_id: string (non-Generated)
+- Generated<> is used ONLY for: id, created_at, updated_at, is_active columns
+- organizations table has: id Generated<string>, name string, created_at Generated<Date>
+- users table has: id Generated<string>, tenant_id string, email string, password string, first_name string, last_name string, role 'Admin' | 'ProjectManager' | 'Member', is_active Generated<boolean>, created_at Generated<Date>, updated_at Generated<Date>
+- projects table has: id Generated<string>, tenant_id string, name string, description string | null, status 'Active' | 'Archived', created_at Generated<Date>, updated_at Generated<Date>
+- tasks table has: id Generated<string>, tenant_id string, project_id string, assigned_to string | null, title string, description string | null, status 'ToDo' | 'InProgress' | 'Completed', created_at Generated<Date>, updated_at Generated<Date>
+- 001_initial.ts creates extension "uuid-ossp" if not exists
+- 001_initial.ts creates organizations table with UNIQUE(name)
+- 001_initial.ts creates users table with UNIQUE(email), CHECK role IN ('Admin','ProjectManager','Member'), FK tenant_id REFERENCES organizations(id) ON DELETE CASCADE, indexes idx_users_tenant_id and idx_users_email
+- 001_initial.ts creates projects table with CHECK status IN ('Active','Archived'), FK tenant_id REFERENCES organizations(id) ON DELETE CASCADE, indexes idx_projects_tenant_id and idx_projects_status
+- 001_initial.ts creates tasks table with CHECK status IN ('ToDo','InProgress','Completed'), FK tenant_id REFERENCES organizations(id) ON DELETE CASCADE, FK project_id REFERENCES projects(id) ON DELETE CASCADE, FK assigned_to REFERENCES users(id) ON DELETE SET NULL, indexes idx_tasks_tenant_id, idx_tasks_project_id, idx_tasks_assigned_to, idx_tasks_status
+- migrate.ts executes all pending migrations using Kysely Migrator on application bootstrap
 - app.module.ts imports DatabaseModule
-
-Implement everything required above before continuing.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
