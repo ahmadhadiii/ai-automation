@@ -75,7 +75,7 @@ export interface AttachmentsTable {
   id: Generated<string>;
   tenant_id: string;
   task_id: string;
-  uploaded_by: string;
+  uploaded_by: string | null;
   file_name: string;
   file_path: string;
   file_size: number;
