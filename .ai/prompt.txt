@@ -646,7 +646,6 @@ PHASE 3 — ARCHITECTURE RULES (follow exactly)
 GLOBAL GUARDS:
 Guards are registered globally via APP_GUARD in app.module.ts.
 NEVER add @UseGuards() to any controller or method — not even once.
-Adding @UseGuards() on a controller causes double-guard execution and auth bugs.
 
 AUTHENTICATION:
 JWT Payload into token: { sub: userId, email, role, tenant_id }
@@ -884,38 +883,36 @@ PHASE 4 — IMPLEMENT THE STORY
 STORY TO IMPLEMENT:
 Story Number: 1
 Title: Database Foundation
-Description: Establish global Kysely database integration with full multi-tenant schema, types, and migration runner.
+Description: Establish global database infrastructure with Kysely, full schema types, and a single migration creating all tables.
 
-FILES TO CREATE:
+Files to create:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-FILES TO MODIFY:
+Files to modify:
 - src/app.module.ts
 
-ACCEPTANCE CRITERIA:
+Acceptance Criteria:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
-- DatabaseService extends Kysely<Database> and connects using DATABASE_URL environment variable
-- types.ts defines Database interface including organizations, users, projects, tasks, comments, attachments, notifications, audit_logs tables
-- All tables except organizations include tenant_id: string
+- DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
+- types.ts defines a Database interface containing organizations, users, projects, project_members, tasks, comments, attachments, notifications, audit_logs tables
+- Every table interface includes tenant_id: string (organizations may use id as tenant_id but still include tenant_id: string for consistency)
 - Generated<> is used ONLY on id, created_at, updated_at, is_active, read columns
-- 001_initial.ts creates uuid-ossp extension if not exists
-- 001_initial.ts creates organizations table with id UUID PK default uuid_generate_v4(), name varchar(150), created_at, updated_at
-- 001_initial.ts creates users table with FK tenant_id → organizations(id) ON DELETE CASCADE, unique email, role check constraint ('Admin','ProjectManager','Member'), is_active default true, proper indexes idx_users_tenant and idx_users_email
-- 001_initial.ts creates projects table with FK tenant_id → organizations(id) ON DELETE CASCADE, status check ('Active','Archived'), index idx_projects_tenant
-- 001_initial.ts creates tasks table with FK tenant_id → organizations(id) ON DELETE CASCADE, project_id FK → projects(id) ON DELETE CASCADE, assigned_to FK → users(id) ON DELETE SET NULL, status check ('ToDo','InProgress','Completed'), indexes idx_tasks_tenant, idx_tasks_project, idx_tasks_assigned
-- 001_initial.ts creates comments table with FK tenant_id → organizations(id) ON DELETE CASCADE, task_id FK → tasks(id) ON DELETE CASCADE, user_id FK → users(id) ON DELETE CASCADE, content text not null
-- 001_initial.ts creates attachments table with FK tenant_id → organizations(id) ON DELETE CASCADE, task_id FK → tasks(id) ON DELETE CASCADE, file_name varchar(255), file_url text
-- 001_initial.ts creates notifications table with FK tenant_id → organizations(id) ON DELETE CASCADE, user_id FK → users(id) ON DELETE CASCADE, message text not null, read boolean default false
-- 001_initial.ts creates audit_logs table with FK tenant_id → organizations(id) ON DELETE CASCADE, user_id FK → users(id) ON DELETE SET NULL, action varchar(100), entity varchar(100), entity_id UUID, metadata JSONB
-- All tables include created_at and updated_at default now()
+- All nullable columns are typed as string | null
+- 001_initial.ts creates ALL tables with correct columns, constraints, foreign keys, checks, and indexes exactly as defined in the specification in a single migration
+- users.role has CHECK constraint limiting values to 'Admin','ProjectManager','Member'
+- projects.status has CHECK constraint limiting values to 'Active','Archived'
+- tasks.status has CHECK constraint limiting values to 'ToDo','InProgress','Completed'
+- project_members has UNIQUE(project_id, user_id)
+- All foreign keys use ON DELETE CASCADE
+- All tables except organizations include tenant_id with index
 - migrate.ts runs all pending migrations on application startup
 - app.module.ts imports DatabaseModule
 
-Implement everything exactly as specified.
+Implement everything exactly as required before proceeding.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
