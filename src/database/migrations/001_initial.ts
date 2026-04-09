@@ -141,7 +141,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['assignee_id'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('cascade'),
+      (cb) => cb.onDelete('set null'),
     )
     .execute();
 
@@ -174,6 +174,13 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['id'],
       (cb) => cb.onDelete('cascade'),
     )
+    .addForeignKeyConstraint(
+      'fk_comments_tenant',
+      ['tenant_id'],
+      'organizations',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
     .execute();
 
   // Attachments
@@ -203,6 +210,13 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['uploaded_by'],
       'users',
       ['id'],
+      (cb) => cb.onDelete('set null'),
+    )
+    .addForeignKeyConstraint(
+      'fk_attachments_tenant',
+      ['tenant_id'],
+      'organizations',
+      ['id'],
       (cb) => cb.onDelete('cascade'),
     )
     .execute();
@@ -230,6 +244,13 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['id'],
       (cb) => cb.onDelete('cascade'),
     )
+    .addForeignKeyConstraint(
+      'fk_notifications_tenant',
+      ['tenant_id'],
+      'organizations',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
     .execute();
 
   // Audit Logs
@@ -254,6 +275,20 @@ export async function up(db: Kysely<any>): Promise<void> {
       'organizations',
       ['id'],
       (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_audit_logs_tenant',
+      ['tenant_id'],
+      'organizations',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_audit_logs_user',
+      ['user_id'],
+      'users',
+      ['id'],
+      (cb) => cb.onDelete('set null'),
     )
     .execute();
 
