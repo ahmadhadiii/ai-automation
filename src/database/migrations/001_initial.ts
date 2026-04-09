@@ -10,7 +10,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
     )
     .addColumn('tenant_id', 'uuid', (col) => col.notNull())
-    .addColumn('name', sql`varchar(150)`, (col) => col.notNull().unique())
+    .addColumn('name', sql`varchar(255)`, (col) => col.notNull().unique())
     .addColumn('created_at', sql`timestamptz`, (col) =>
       col.notNull().defaultTo(sql`now()`),
     )
@@ -390,9 +390,21 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
+    .createIndex('idx_users_email')
+    .on('users')
+    .column('email')
+    .execute();
+
+  await db.schema
     .createIndex('idx_comments_tenant_id')
     .on('comments')
     .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_comments_task_id')
+    .on('comments')
+    .column('task_id')
     .execute();
 
   await db.schema

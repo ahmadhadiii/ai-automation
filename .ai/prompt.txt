@@ -870,36 +870,36 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 
 PHASE 4 — IMPLEMENT THE STORY
 
-STORY NUMBER: 1
-TITLE: Database Foundation
+STORY TO IMPLEMENT:
+Story Number: 1
+Title: Database Foundation
+Description: Establish the global Kysely database layer with complete schema types and a single initial migration creating all tables.
 
-DESCRIPTION:
-Establish a global DatabaseModule with Kysely, full schema types, and a single migration that creates all tables.
-
-FILES TO CREATE:
+Files to create:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-FILES TO MODIFY:
+Files to modify:
 - src/app.module.ts
 
-ACCEPTANCE CRITERIA:
+Acceptance Criteria:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines interfaces for organizations, users, projects, tasks, comments, notifications, and audit_logs tables
-- All tables except organizations include tenant_id: string in types.ts
-- Generated<> is used ONLY for id, created_at, updated_at, is_active, and read columns
-- 001_initial.ts creates uuid extension if not exists and creates all tables with correct columns, constraints, foreign keys, ON DELETE CASCADE rules, unique constraints, check constraints, and indexes exactly as defined in the specification
-- projects table has UNIQUE (tenant_id, name)
-- users.email is globally unique
-- All foreign keys reference correct parent tables with ON DELETE CASCADE
+- types.ts defines Database interface with tables: organizations, users, projects, tasks, task_assignments
+- Every table interface includes tenant_id: string except organizations which does not include tenant_id
+- Generated<> is used ONLY on id, created_at, updated_at columns
+- All role, status and enum-like columns are typed as union string literals exactly matching PRD values
+- 001_initial.ts creates extension uuid-ossp if not exists
+- 001_initial.ts creates all tables with correct columns, constraints, CHECK constraints, FKs with ON DELETE CASCADE, UNIQUE(task_id,user_id), and all required indexes
+- users.email has UNIQUE constraint and idx_users_email index
+- All tables include created_at DEFAULT now() and updated_at DEFAULT now() where specified
 - migrate.ts runs all pending migrations on application bootstrap
 - app.module.ts imports DatabaseModule
 
-Meet every acceptance criterion before proceeding.
+Implement every requirement exactly.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
@@ -908,22 +908,22 @@ Do NOT proceed to Phase 6 with a broken build.
 
 PHASE 6 — COMMIT AND PUSH
 Run in exact order:
-  git add -A
-  git commit -m "feat: story-1 Database Foundation"
-  git push origin HEAD
+git add -A
+git commit -m "feat: story-1 Database Foundation"
+git push origin HEAD
 
 After push succeeds make this HTTP POST request to trigger the next story:
-  POST http://localhost:5678/webhook/ai automation
-  Content-Type: application/json
-  Body:
-  {
-    "project": "[object Object]",
-    "webhookUrl": "http://localhost:5678/webhook/ai automation",
-    "state": {
-      "completed_stories": [1],
-      "current_story": null
-    }
+POST http://localhost:5678/webhook/ai automation
+Content-Type: application/json
+Body:
+{
+  "project": "[object Object]",
+  "webhookUrl": "http://localhost:5678/webhook/ai automation",
+  "state": {
+    "completed_stories": [1],
+    "current_story": null
   }
+}
 
 After POST succeeds output exactly:
 === STORY 1 COMPLETE — NEXT STORY TRIGGERED ===
