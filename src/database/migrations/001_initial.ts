@@ -289,7 +289,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['user_id'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('cascade'),
+      (cb) => cb.onDelete('set null'),
     )
     .execute();
 
@@ -360,9 +360,9 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_projects_status')
+    .createIndex('idx_projects_tenant_status')
     .on('projects')
-    .column('status')
+    .columns(['tenant_id', 'status'])
     .execute();
 
   await db.schema
