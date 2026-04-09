@@ -863,6 +863,9 @@ PHASE 4 — IMPLEMENT THE STORY
 STORY NUMBER: 1
 TITLE: Database Foundation
 
+DESCRIPTION:
+Establish the global DatabaseModule with Kysely, define all table types, and create a single initial migration that sets up the entire schema.
+
 FILES TO CREATE:
 - src/database/database.module.ts
 - src/database/database.service.ts
@@ -875,25 +878,21 @@ FILES TO MODIFY:
 
 ACCEPTANCE CRITERIA:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
-- DatabaseService extends Kysely<Database> and connects to PostgreSQL using DATABASE_URL environment variable
-- types.ts defines a Database interface including organizations, users, projects, and tasks tables
-- Each table interface includes tenant_id: string
-- Generated<> is used ONLY for id, created_at, updated_at, is_active, and read columns
-- 001_initial.ts creates organizations, users, projects, and tasks tables in a single migration file
-- organizations table has id UUID primary key default uuid_generate_v4(), unique name, and created_at default now()
-- users table has foreign key tenant_id referencing organizations(id) ON DELETE CASCADE
-- users.email is globally UNIQUE and indexed with idx_users_email
-- users has index idx_users_tenant on tenant_id
-- users.role has CHECK constraint limited to ('Admin','ProjectManager','Member')
-- projects has foreign key tenant_id referencing organizations(id) ON DELETE CASCADE
-- projects has UNIQUE (tenant_id, name) constraint
-- projects.status has CHECK constraint limited to ('Active','Archived')
-- tasks has foreign key project_id referencing projects(id) ON DELETE CASCADE
-- tasks has foreign key assigned_to referencing users(id) ON DELETE SET NULL
-- tasks.status has CHECK constraint limited to ('ToDo','InProgress','Completed')
-- tasks has indexes idx_tasks_tenant on tenant_id and idx_tasks_project on project_id
-- migrate.ts executes all pending migrations on application startup
+- DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
+- types.ts defines interfaces for organizations, users, projects, tasks tables and exports Database interface mapping all tables
+- Every table interface includes tenant_id: string except organizations which does not include tenant_id
+- Generated<> is used ONLY on id, created_at, updated_at, and is_active columns
+- All other nullable columns are typed as string | null
+- 001_initial.ts creates organizations, users, projects, tasks tables with all columns, constraints, foreign keys, checks, unique constraints, and indexes exactly as specified
+- users.email is UNIQUE and role has CHECK constraint for 'Admin','ProjectManager','Member'
+- projects has UNIQUE (tenant_id, name) constraint and status CHECK for 'Active','Archived'
+- tasks.status has CHECK constraint for 'ToDo','InProgress','Completed'
+- All foreign keys enforce ON DELETE CASCADE except tasks.assignee_id which uses ON DELETE SET NULL
+- Indexes exist on users(tenant_id), projects(tenant_id), tasks(tenant_id), tasks(project_id), tasks(assignee_id)
+- migrate.ts runs all pending migrations on application bootstrap
 - app.module.ts imports DatabaseModule
+
+Implement everything exactly as specified before proceeding.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
@@ -907,12 +906,12 @@ Run in exact order:
   git push origin HEAD
 
 After push succeeds make this HTTP POST request to trigger the next story:
-  POST http://localhost:5678/webhook-test/ai%20automation
+  POST http://localhost:5678/webhook/ai%20automation
   Content-Type: application/json
   Body:
   {
     "project": "[object Object]",
-    "webhookUrl": "http://localhost:5678/webhook-test/ai%20automation",
+    "webhookUrl": "http://localhost:5678/webhook/ai%20automation",
     "state": {
       "completed_stories": [1],
       "current_story": null
