@@ -643,43 +643,273 @@ FIX 14: Make sure TasksTable has assignee_id: string | null
 
 PHASE 3 — ARCHITECTURE RULES (follow exactly)
 
-[All architecture rules unchanged — follow exactly as provided above.]
+GLOBAL GUARDS:
+Guards are registered globally via APP_GUARD in app.module.ts.
+NEVER add @UseGuards() to any controller or method — not even once.
+Adding @UseGuards() on a controller causes double-guard execution and auth bugs.
+
+AUTHENTICATION:
+JWT Payload into token: { sub: userId, email, role, tenant_id }
+req.user after validation: { id, email, role, tenant_id }
+ALWAYS use req.user.id — NEVER use req.user.sub
+jwt.strategy.ts validate() must return exactly:
+  return { id: payload.sub, email: payload.email, role: payload.role, tenant_id: payload.tenant_id }
+
+ROLE VALUES — exact casing:
+'Admin' | 'ProjectManager' | 'Member'
+WRONG: 'ADMIN', 'admin', 'MEMBER'
+
+STATUS VALUES — exact casing:
+Task: 'ToDo' | 'InProgress' | 'Completed'
+Project: 'Active' | 'Archived'
+WRONG: 'TODO', 'IN_PROGRESS', 'DONE'
+
+REGISTRATION RULE:
+Register endpoint NEVER accepts role from body. Hardcode: role: 'Member'
+
+KYSELY SELECT RULES:
+NEVER: .select(['id', 'email']) — TypeScript error, Kysely rejects arrays
+CORRECT: .selectAll()
+CORRECT: .select('id').select('email')
+
+KYSELY Generated<T> RULES:
+Generated<> ONLY for: id, created_at, updated_at, is_active, read
+Everything else is plain string or string | null:
+  tenant_id        → string (never Generated)
+  email            → string
+  role             → string
+  organization_id  → string
+  created_by       → string
+  assignee_id      → string | null
+  description      → string | null
+  due_date         → string | null
+  deadline         → string | null
+
+COMPLETE types.ts — use this exact content:
+import { Generated } from 'kysely';
+export interface Database {
+  organizations: OrganizationsTable;
+  users: UsersTable;
+  projects: ProjectsTable;
+  tasks: TasksTable;
+  comments: CommentsTable;
+  attachments: AttachmentsTable;
+  notifications: NotificationsTable;
+  audit_logs: AuditLogsTable;
+  refresh_tokens: RefreshTokensTable;
+}
+export interface OrganizationsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  name: string;
+  created_at: Generated<Date>;
+}
+export interface UsersTable {
+  id: Generated<string>;
+  tenant_id: string;
+  organization_id: string;
+  email: string;
+  password_hash: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  is_active: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+export interface ProjectsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  deadline: string | null;
+  status: string;
+  created_by: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+export interface TasksTable {
+  id: Generated<string>;
+  tenant_id: string;
+  project_id: string;
+  assignee_id: string | null;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string | null;
+  due_date: string | null;
+  created_by: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+export interface CommentsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  task_id: string;
+  user_id: string;
+  content: string;
+  created_at: Generated<Date>;
+}
+export interface AttachmentsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  task_id: string;
+  uploaded_by: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  created_at: Generated<Date>;
+}
+export interface NotificationsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  user_id: string;
+  type: string;
+  message: string;
+  read: Generated<boolean>;
+  entity_type: string | null;
+  entity_id: string | null;
+  created_at: Generated<Date>;
+}
+export interface AuditLogsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  organization_id: string;
+  user_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  metadata: any | null;
+  created_at: Generated<Date>;
+}
+export interface RefreshTokensTable {
+  id: Generated<string>;
+  user_id: string;
+  token: string;
+  expires_at: Date;
+  created_at: Generated<Date>;
+}
+
+DATABASE PATTERNS:
+
+SELECT with pagination:
+  const page = Number(query.page) || 1;
+  const limit = Math.min(Number(query.limit) || 20, 100);
+  const offset = (page - 1) * limit;
+  const [{ count }] = await this.db.selectFrom('table').select(this.db.fn.count('id').as('count')).where('tenant_id', '=', tenantId).execute();
+  const data = await this.db.selectFrom('table').selectAll().where('tenant_id', '=', tenantId).orderBy('created_at', 'desc').limit(limit).offset(offset).execute();
+  return { data, meta: { total: Number(count), page, limit, totalPages: Math.ceil(Number(count) / limit) } };
+
+INSERT:
+  const record = await this.db.insertInto('table').values({ id: uuidv4(), tenant_id: tenantId, ...dto }).returningAll().executeTakeFirstOrThrow();
+
+UPDATE:
+  const record = await this.db.updateTable('table').set({ ...dto, updated_at: new Date() }).where('id', '=', id).where('tenant_id', '=', tenantId).returningAll().executeTakeFirst();
+  if (!record) throw new NotFoundException('Not found');
+
+DELETE:
+  const result = await this.db.deleteFrom('table').where('id', '=', id).where('tenant_id', '=', tenantId).executeTakeFirst();
+  if (!result.numDeletedRows) throw new NotFoundException('Not found');
+
+SELECT ONE:
+  const record = await this.db.selectFrom('table').selectAll().where('id', '=', id).where('tenant_id', '=', tenantId).executeTakeFirst();
+  if (!record) throw new NotFoundException('Not found');
+
+CONTROLLER PATTERN — NO @UseGuards() anywhere:
+@Controller('resource')
+export class ResourceController {
+  constructor(private readonly service: ResourceService) {}
+  @Get() findAll(@Request() req, @Query() query: any) { return this.service.findAll(req.user.tenant_id, query); }
+  @Post() @HttpCode(HttpStatus.CREATED) create(@Request() req, @Body() dto: CreateDto) { return this.service.create(req.user.id, req.user.tenant_id, dto); }
+  @Get(':id') findOne(@Request() req, @Param('id') id: string) { return this.service.findOne(id, req.user.tenant_id); }
+  @Put(':id') update(@Request() req, @Param('id') id: string, @Body() dto: UpdateDto) { return this.service.update(id, req.user.tenant_id, dto); }
+  @Delete(':id') @Roles('Admin') @HttpCode(HttpStatus.NO_CONTENT) remove(@Request() req, @Param('id') id: string) { return this.service.remove(id, req.user.tenant_id); }
+}
+
+MODULE PATTERN:
+@Module({
+  controllers: [ResourceController],
+  providers: [ResourceService],
+  exports: [ResourceService],
+})
+export class ResourceModule {}
+
+app.module.ts — every new module MUST be added to imports[]:
+@Module({
+  imports: [
+    DatabaseModule,
+    AuthModule,
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
+})
+export class AppModule {}
+
+FILES THAT MUST NEVER BE DUPLICATED:
+Only ONE DatabaseModule: src/database/database.module.ts
+Only ONE types.ts: src/database/types.ts
+Only ONE app.module.ts: src/app.module.ts
+NEVER create: src/modules/database/, src/database/kysely.module.ts, src/database/database.types.ts
+
+ADDING A NEW MODULE CHECKLIST:
+1. Create src/{module}/{module}.module.ts
+2. Create src/{module}/{module}.controller.ts — NO @UseGuards()
+3. Create src/{module}/{module}.service.ts — inject DatabaseService
+4. Create src/{module}/dto/create-{module}.dto.ts
+5. Create src/{module}/dto/update-{module}.dto.ts
+6. Verify every query has .where('tenant_id', '=', tenantId)
+7. Verify every list endpoint returns { data, meta }
+8. Add {Module}Module to imports[] in src/app.module.ts
+
+ABSOLUTE RULES — VIOLATION MEANS FAILURE:
+1. NEVER add @UseGuards() to any controller
+2. Use @Public() for unauthenticated routes
+3. Use req.user.id never req.user.sub
+4. EVERY query must filter by tenant_id
+5. Use uuidv4() for all IDs
+6. All list endpoints return { data, meta: { total, page, limit, totalPages } }
+7. Register hardcodes role: 'Member'
+8. Task status: 'ToDo', 'InProgress', 'Completed'
+9. Project status: 'Active', 'Archived'
+10. Roles: 'Admin', 'ProjectManager', 'Member'
+11. Every new module added to app.module.ts imports[]
+12. NEVER .select(['col1','col2']) — use .selectAll()
+13. EVERY table interface has tenant_id: string
 
 PHASE 4 — IMPLEMENT THE STORY
+Read the selected story carefully.
+Implement every file in files_to_create.
+Modify every file in files_to_modify.
+Meet every acceptance criterion before proceeding.
 
-STORY NUMBER: 1  
-TITLE: Database Foundation
-
-DESCRIPTION:
-Establish the global Kysely database module with complete schema types and a single initial migration creating all tables.
-
-FILES TO CREATE:
+STORY TO IMPLEMENT:
+Story Number: 1
+Title: Database Foundation
+Description: Establish global Kysely database integration with complete schema types and a single initial migration creating all tables.
+Files to Create:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
-
-FILES TO MODIFY:
+Files to Modify:
 - src/app.module.ts
-
-ACCEPTANCE CRITERIA:
+Acceptance Criteria:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines Database interface including tables: organizations, users, projects, tasks
-- All tables except organizations include tenant_id: string (not Generated)
-- Generated<> is used ONLY for id, created_at, updated_at, is_active columns
-- users.role is typed as 'Admin' | 'ProjectManager' | 'Member'
-- projects.status is typed as 'Active' | 'Archived'
-- tasks.status is typed as 'ToDo' | 'InProgress' | 'Completed'
-- 001_initial.ts creates organizations, users, projects, tasks tables with all columns, constraints, foreign keys, check constraints, and indexes exactly as defined in specification
-- users.email is UNIQUE and organizations.name is UNIQUE
-- Foreign keys use ON DELETE CASCADE except tasks.assignee_id uses ON DELETE SET NULL
-- Indexes created: idx_users_tenant_id, idx_projects_tenant_id, idx_tasks_tenant_id, idx_tasks_project_id, idx_tasks_assignee_id
-- migrate.ts runs all pending migrations using Kysely Migrator on application bootstrap
+- types.ts defines a Database interface including tables: organizations, users, projects, tasks, comments, attachments, notifications, audit_logs
+- Every table interface in types.ts includes tenant_id: string except organizations which does not include tenant_id
+- Generated<> is used ONLY on id, created_at, updated_at, is_active, and read columns
+- 001_initial.ts creates ALL tables (organizations, users, projects, tasks, comments, attachments, notifications, audit_logs) with correct columns, constraints, foreign keys, ON DELETE rules, CHECK constraints, and indexes exactly as defined in requirements
+- users table has UNIQUE (tenant_id, email) constraint and index idx_users_tenant_id
+- projects table has index idx_projects_tenant_id
+- tasks table has indexes idx_tasks_tenant_id and idx_tasks_project_id
+- All foreign keys enforce tenant isolation via tenant_id columns and proper ON DELETE CASCADE or SET NULL behavior
+- migrate.ts executes all pending migrations programmatically on application bootstrap
 - app.module.ts imports DatabaseModule
-
-Implement everything strictly following ARCHITECTURE rules and database patterns.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
