@@ -28,7 +28,7 @@ export interface UsersTable {
   password_hash: string;
   first_name: string;
   last_name: string;
-  role: 'Admin' | 'ProjectManager' | 'Member';
+  role: string;
   is_active: Generated<boolean>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -41,7 +41,7 @@ export interface ProjectsTable {
   name: string;
   description: string | null;
   deadline: string | null;
-  status: 'Active' | 'Archived';
+  status: string;
   created_by: string;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -54,7 +54,7 @@ export interface TasksTable {
   assignee_id: string | null;
   title: string;
   description: string | null;
-  status: 'ToDo' | 'InProgress' | 'Completed';
+  status: string;
   priority: string | null;
   due_date: string | null;
   created_by: string;
