@@ -355,13 +355,13 @@ export async function up(db: Kysely<any>): Promise<void> {
 
   // Indexes
   await db.schema
-    .createIndex('idx_users_tenant')
+    .createIndex('idx_users_tenant_id')
     .on('users')
     .column('tenant_id')
     .execute();
 
   await db.schema
-    .createIndex('idx_projects_tenant')
+    .createIndex('idx_projects_tenant_id')
     .on('projects')
     .column('tenant_id')
     .execute();
@@ -373,27 +373,27 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_tenant')
+    .createIndex('idx_tasks_tenant_id')
     .on('tasks')
     .column('tenant_id')
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_tenant_project')
+    .createIndex('idx_tasks_project_id')
     .on('tasks')
-    .columns(['tenant_id', 'project_id'])
+    .column('project_id')
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_tenant_assignee')
+    .createIndex('idx_tasks_assignee_id')
     .on('tasks')
-    .columns(['tenant_id', 'assignee_id'])
+    .column('assignee_id')
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_tenant_status')
+    .createIndex('idx_tasks_status')
     .on('tasks')
-    .columns(['tenant_id', 'status'])
+    .column('status')
     .execute();
 
   await db.schema
