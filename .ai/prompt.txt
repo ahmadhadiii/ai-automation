@@ -157,6 +157,7 @@ export interface Database {
   notifications: NotificationsTable;
   audit_logs: AuditLogsTable;
   refresh_tokens: RefreshTokensTable;
+  dashboard_views: DashboardViewsTable;
 }
 
 export interface OrganizationsTable {
@@ -174,7 +175,7 @@ export interface UsersTable {
   password_hash: string;
   first_name: string;
   last_name: string;
-  role: 'Admin' | 'ProjectManager' | 'Member';
+  role: string;
   is_active: Generated<boolean>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -187,7 +188,7 @@ export interface ProjectsTable {
   name: string;
   description: string | null;
   deadline: string | null;
-  status: 'Active' | 'Archived';
+  status: string;
   created_by: string;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -200,7 +201,7 @@ export interface TasksTable {
   assignee_id: string | null;
   title: string;
   description: string | null;
-  status: 'ToDo' | 'InProgress' | 'Completed';
+  status: string;
   priority: string | null;
   due_date: string | null;
   created_by: string;
@@ -221,7 +222,7 @@ export interface AttachmentsTable {
   id: Generated<string>;
   tenant_id: string;
   task_id: string;
-  uploaded_by: string | null;
+  uploaded_by: string;
   file_name: string;
   file_path: string;
   file_size: number;
@@ -268,6 +269,16 @@ export interface RefreshTokensTable {
   token: string;
   expires_at: Date;
   created_at: Generated<Date>;
+}
+
+export interface DashboardViewsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  user_id: string;
+  name: string;
+  config: any | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
 }
 
 
@@ -824,19 +835,6 @@ MODULE PATTERN:
 })
 export class ResourceModule {}
 
-app.module.ts — every new module MUST be added to imports[]:
-@Module({
-  imports: [
-    DatabaseModule,
-    AuthModule,
-  ],
-  providers: [
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: RolesGuard },
-  ],
-})
-export class AppModule {}
-
 FILES THAT MUST NEVER BE DUPLICATED:
 Only ONE DatabaseModule: src/database/database.module.ts
 Only ONE types.ts: src/database/types.ts
@@ -869,60 +867,60 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 13. EVERY table interface has tenant_id: string
 
 PHASE 4 — IMPLEMENT THE STORY
+Implement Story 1 — Database Foundation.
 
-STORY NUMBER: 1
-TITLE: Database Foundation
-
-DESCRIPTION:
-Establishes the global Kysely database module, full schema types, and a single migration that creates all tables with proper constraints and indexes.
-
-FILES TO CREATE:
+Create these files:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-FILES TO MODIFY:
+Modify:
 - src/app.module.ts
 
-ACCEPTANCE CRITERIA:
+Acceptance criteria to satisfy:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines Database interface including tables: organizations, users, projects, tasks, comments, attachments, notifications, audit_logs
-- Every table interface includes tenant_id: string (organizations table also includes tenant_id: string for consistency)
-- Generated<> is used ONLY on id, created_at, updated_at, is_active, and read columns
-- 001_initial.ts creates ALL tables in a single migration with correct PKs, FKs, ON DELETE rules, CHECK constraints for role and status enums, and required indexes
-- users table has UNIQUE(tenant_id,email) and INDEX on tenant_id
-- projects table has INDEX(tenant_id) and INDEX(tenant_id,status)
-- tasks table has INDEX(tenant_id), INDEX(project_id), INDEX(assigned_to)
-- All foreign keys enforce tenant isolation via tenant_id presence and ON DELETE CASCADE where specified
-- migrate.ts runs all pending migrations on application startup
+- types.ts matches EXACT specification above
+- 001_initial.ts:
+  - Creates extension "uuid-ossp"
+  - Creates ALL tables with correct columns
+  - Adds CHECK constraints:
+      users.role IN ('Admin','ProjectManager','Member')
+      projects.status IN ('Active','Archived')
+      tasks.status IN ('ToDo','InProgress','Completed')
+  - Adds foreign keys with ON DELETE CASCADE
+  - Adds indexes for ALL foreign keys and tenant_id columns
+  - Every table has created_at DEFAULT now()
+  - Tables with updated_at must have DEFAULT now()
+- migrate.ts runs all pending migrations using Kysely Migrator on bootstrap
 - app.module.ts imports DatabaseModule
 
 PHASE 5 — VERIFY BUILD
-Run: npx tsc --noEmit
-Fix all errors. Never use @ts-ignore. Repeat until zero errors.
-Do NOT proceed to Phase 6 with a broken build.
+Run:
+  npx tsc --noEmit
+Fix all errors. Zero TypeScript errors allowed.
 
 PHASE 6 — COMMIT AND PUSH
-Run in exact order:
+Run:
   git add -A
   git commit -m "feat: story-1 Database Foundation"
   git push origin HEAD
 
-After push succeeds make this HTTP POST request to trigger the next story:
-  POST http://localhost:5678/webhook/ai automation
-  Content-Type: application/json
-  Body:
-  {
-    "project": "[object Object]",
-    "webhookUrl": "http://localhost:5678/webhook/ai automation",
-    "state": {
-      "completed_stories": [1],
-      "current_story": null
-    }
+Then POST to:
+  http://localhost:5678/webhook/ai automation
+Content-Type: application/json
+
+Body:
+{
+  "project": "[object Object]",
+  "webhookUrl": "http://localhost:5678/webhook/ai automation",
+  "state": {
+    "completed_stories": [1],
+    "current_story": null
   }
+}
 
 After POST succeeds output exactly:
 === STORY 1 COMPLETE — NEXT STORY TRIGGERED ===
