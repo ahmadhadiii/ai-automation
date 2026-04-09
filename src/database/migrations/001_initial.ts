@@ -191,7 +191,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     )
     .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('task_id', 'uuid', (col) => col.notNull())
-    .addColumn('uploaded_by', 'uuid', (col) => col.notNull())
+    .addColumn('uploaded_by', 'uuid')
     .addColumn('file_name', 'varchar', (col) => col.notNull())
     .addColumn('file_path', 'varchar', (col) => col.notNull())
     .addColumn('file_size', 'integer', (col) => col.notNull())
@@ -210,7 +210,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['uploaded_by'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('cascade'),
+      (cb) => cb.onDelete('set null'),
     )
     .addForeignKeyConstraint(
       'fk_attachments_tenant',
@@ -359,7 +359,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_projects_tenant_id')
+    .createIndex('idx_projects_tenant')
     .on('projects')
     .column('tenant_id')
     .execute();
@@ -383,7 +383,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_assignee')
+    .createIndex('idx_tasks_assigned')
     .on('tasks')
     .column('assignee_id')
     .execute();
