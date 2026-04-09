@@ -331,6 +331,38 @@ export async function up(db: Kysely<any>): Promise<void> {
 
   await sql`ALTER TABLE project_members ADD CONSTRAINT uq_project_members UNIQUE (project_id, user_id)`.execute(db);
 
+  // Dashboard Views
+  await db.schema
+    .createTable('dashboard_views')
+    .addColumn('id', 'uuid', (col) =>
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
+    )
+    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
+    .addColumn('user_id', 'uuid', (col) => col.notNull())
+    .addColumn('name', 'varchar', (col) => col.notNull())
+    .addColumn('config', 'jsonb')
+    .addColumn('created_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addColumn('updated_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addForeignKeyConstraint(
+      'fk_dashboard_views_tenant',
+      ['tenant_id'],
+      'organizations',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_dashboard_views_user',
+      ['user_id'],
+      'users',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .execute();
+
   // Refresh Tokens
   await db.schema
     .createTable('refresh_tokens')
