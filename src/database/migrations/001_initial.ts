@@ -144,6 +144,13 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['id'],
       (cb) => cb.onDelete('set null'),
     )
+    .addForeignKeyConstraint(
+      'fk_tasks_created_by',
+      ['created_by'],
+      'users',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
     .execute();
 
   await sql`ALTER TABLE tasks ADD CONSTRAINT chk_tasks_status CHECK (status IN ('ToDo', 'InProgress', 'Completed'))`.execute(db);
@@ -372,21 +379,21 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_project')
+    .createIndex('idx_tasks_tenant_project')
     .on('tasks')
-    .column('project_id')
+    .columns(['tenant_id', 'project_id'])
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_assignee')
+    .createIndex('idx_tasks_tenant_assignee')
     .on('tasks')
-    .column('assignee_id')
+    .columns(['tenant_id', 'assignee_id'])
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_status')
+    .createIndex('idx_tasks_tenant_status')
     .on('tasks')
-    .column('status')
+    .columns(['tenant_id', 'status'])
     .execute();
 
   await db.schema
