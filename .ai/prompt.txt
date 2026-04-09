@@ -635,6 +635,7 @@ PHASE 3 — ARCHITECTURE RULES (follow exactly)
 GLOBAL GUARDS:
 Guards are registered globally via APP_GUARD in app.module.ts.
 NEVER add @UseGuards() to any controller or method — not even once.
+Adding @UseGuards() on a controller causes double-guard execution and auth bugs.
 
 AUTHENTICATION:
 JWT Payload into token: { sub: userId, email, role, tenant_id }
@@ -870,9 +871,10 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 PHASE 4 — IMPLEMENT THE STORY
 
 STORY TO IMPLEMENT:
-Story Number: 1
-Title: Database Foundation
-Description: Establish the global database module, full schema types, and a single migration creating all tables with proper constraints and indexes.
+Story 1 — Database Foundation
+
+Description:
+Establish the complete Kysely database infrastructure with all tables, types, and a single initial migration covering the entire schema.
 
 Files to create:
 - src/database/database.module.ts
@@ -884,22 +886,20 @@ Files to create:
 Files to modify:
 - src/app.module.ts
 
-Acceptance Criteria:
+Acceptance criteria:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines interfaces for organizations, users, projects, tasks, comments tables
-- All tables except organizations include tenant_id: string
-- Generated<> is used ONLY on id, created_at, updated_at, is_active columns
-- 001_initial.ts creates organizations, users, projects, tasks, comments tables in one migration with all PKs, FKs, CHECK constraints, and indexes exactly as specified
-- users.role CHECK constraint enforces ('Admin','ProjectManager','Member')
-- projects.status CHECK constraint enforces ('Active','Archived')
-- tasks.status CHECK constraint enforces ('ToDo','InProgress','Completed')
-- All foreign keys use correct ON DELETE behavior as specified
-- All required indexes are created: idx_users_tenant_id, idx_users_email, idx_projects_tenant_id, idx_tasks_tenant_id, idx_tasks_project_id, idx_tasks_assignee_id, idx_comments_task_id
+- types.ts defines Database interface including organizations, users, projects, tasks, comments, attachments, notifications, and audit_logs tables
+- All tables except organizations include tenant_id: string (non-Generated)
+- Generated<> is used ONLY on: id, created_at, updated_at, is_active, read columns
+- 001_initial.ts creates ALL tables with UUID primary keys defaulting to uuid_generate_v4()
+- users.role has CHECK constraint limited to ('Admin','ProjectManager','Member')
+- projects.status has CHECK constraint limited to ('Active','Archived')
+- tasks.status has CHECK constraint limited to ('ToDo','InProgress','Completed')
+- All foreign keys enforce ON DELETE CASCADE except tasks.assigned_to which uses ON DELETE SET NULL
+- Indexes exist for: users(tenant_id), users(email), projects(tenant_id), tasks(tenant_id), tasks(project_id), tasks(assigned_to), comments(task_id), attachments(task_id), notifications(user_id), audit_logs(tenant_id)
 - migrate.ts executes all pending migrations on application startup
 - app.module.ts imports DatabaseModule
-
-Implement everything exactly as required.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
