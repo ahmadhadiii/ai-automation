@@ -471,6 +471,12 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
+    .createIndex('idx_notifications_tenant_user')
+    .on('notifications')
+    .columns(['tenant_id', 'user_id'])
+    .execute();
+
+  await db.schema
     .createIndex('idx_audit_logs_tenant_id')
     .on('audit_logs')
     .column('tenant_id')
@@ -487,9 +493,22 @@ export async function up(db: Kysely<any>): Promise<void> {
     .on('project_members')
     .column('project_id')
     .execute();
+
+  await db.schema
+    .createIndex('idx_dashboard_views_tenant_id')
+    .on('dashboard_views')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_dashboard_views_user_id')
+    .on('dashboard_views')
+    .column('user_id')
+    .execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
+  await db.schema.dropTable('dashboard_views').execute();
   await db.schema.dropTable('refresh_tokens').execute();
   await db.schema.dropTable('audit_logs').execute();
   await db.schema.dropTable('notifications').execute();
