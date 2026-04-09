@@ -379,21 +379,21 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_project_id')
+    .createIndex('idx_tasks_tenant_project')
     .on('tasks')
-    .column('project_id')
+    .columns(['tenant_id', 'project_id'])
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_assignee_id')
+    .createIndex('idx_tasks_tenant_assignee')
     .on('tasks')
-    .column('assignee_id')
+    .columns(['tenant_id', 'assignee_id'])
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_status')
+    .createIndex('idx_tasks_tenant_status')
     .on('tasks')
-    .column('status')
+    .columns(['tenant_id', 'status'])
     .execute();
 
   await db.schema
