@@ -884,7 +884,7 @@ PHASE 4 — IMPLEMENT THE STORY
 STORY TO IMPLEMENT:
 Story Number: 1
 Title: Database Foundation
-Description: Establish the global database layer with Kysely, all table types, and a single migration that creates the complete multi-tenant schema.
+Description: Establish global Kysely database integration with full schema types and a single migration creating all tables.
 
 Files to create:
 - src/database/database.module.ts
@@ -899,17 +899,17 @@ Files to modify:
 Acceptance Criteria:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines Database interface containing organizations, users, projects, tasks, comments tables
-- All tables except organizations include tenant_id: string in types.ts
-- Generated<> is used ONLY on id, created_at, updated_at, is_active columns
-- 001_initial.ts creates extension uuid-ossp if not exists
-- 001_initial.ts creates organizations table without tenant_id and with unique name
-- 001_initial.ts creates users, projects, tasks, comments tables with all columns, CHECK constraints, defaults, FKs, ON DELETE rules, and indexes exactly as specified
-- users.role CHECK constraint allows only 'Admin','ProjectManager','Member'
-- projects.status CHECK constraint allows only 'Active','Archived'
-- tasks.status CHECK constraint allows only 'ToDo','InProgress','Completed'
-- projects has UNIQUE (tenant_id, name)
-- migrate.ts runs all pending migrations programmatically using Kysely Migrator
+- types.ts defines Database interface with tables: organizations, users, projects, tasks
+- Every table interface includes tenant_id: string except organizations
+- Generated<> is used ONLY on id, created_at, updated_at, and is_active columns
+- users.role is typed as 'Admin' | 'ProjectManager' | 'Member'
+- projects.status is typed as 'Active' | 'Archived'
+- tasks.status is typed as 'ToDo' | 'InProgress' | 'Completed'
+- 001_initial.ts creates organizations, users, projects, tasks tables with all columns, CHECK constraints, foreign keys, and indexes exactly as specified
+- users.email has UNIQUE constraint and index
+- All foreign keys use ON DELETE CASCADE except tasks.assigned_to which uses ON DELETE SET NULL
+- All tables include created_at and updated_at with default now()
+- migrate.ts runs all pending migrations on application startup
 - app.module.ts imports DatabaseModule
 
 PHASE 5 — VERIFY BUILD
