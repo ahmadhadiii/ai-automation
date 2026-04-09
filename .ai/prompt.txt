@@ -187,7 +187,7 @@ export interface ProjectsTable {
   name: string;
   description: string | null;
   deadline: string | null;
-  status: string;
+  status: 'Active' | 'Archived';
   created_by: string;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -200,7 +200,7 @@ export interface TasksTable {
   assignee_id: string | null;
   title: string;
   description: string | null;
-  status: string;
+  status: 'ToDo' | 'InProgress' | 'Completed';
   priority: string | null;
   due_date: string | null;
   created_by: string;
@@ -781,6 +781,7 @@ export interface RefreshTokensTable {
 }
 
 DATABASE PATTERNS:
+
 SELECT with pagination:
   const page = Number(query.page) || 1;
   const limit = Math.min(Number(query.limit) || 20, 100);
@@ -869,37 +870,39 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 
 PHASE 4 — IMPLEMENT THE STORY
 
-STORY TO IMPLEMENT:
-Story Number: 1
-Title: Database Foundation
+STORY 1: Database Foundation
 
-Description:
-Establish the global database layer using Kysely with full schema types, initial migration creating all tables, and automatic migration runner.
+DESCRIPTION:
+Establishes global database connection, full schema types, and a single initial migration creating all tables with constraints and indexes.
 
-Files to create:
+FILES TO CREATE:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-Files to modify:
+FILES TO MODIFY:
 - src/app.module.ts
 
-Acceptance Criteria:
+ACCEPTANCE CRITERIA:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
-- DatabaseService extends Kysely<Database> and connects using DATABASE_URL environment variable
-- types.ts defines interfaces for organizations, users, projects, tasks, comments, attachments, notifications, and audit_logs tables
-- Every table interface includes tenant_id: string except organizations table
-- Generated<> is used ONLY on id, created_at, updated_at, is_active, and read columns
-- 001_initial.ts creates ALL tables (organizations, users, projects, tasks, comments, attachments, notifications, audit_logs) with correct columns, constraints, foreign keys, cascade rules, and indexes exactly as specified
-- All foreign keys enforce ON DELETE CASCADE where defined in requirements
-- Indexes exist for all specified indexed columns in requirements
-- migrate.ts executes all pending migrations programmatically using Kysely Migrator
+- DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
+- types.ts defines Database interface including tables: organizations, users, projects, tasks, comments, attachments, notifications, audit_logs
+- All tables except organizations include tenant_id: string in types
+- Generated<> is used ONLY for: id, created_at, updated_at, is_active, read columns
+- 001_initial.ts creates ALL tables with UUID primary keys DEFAULT gen_random_uuid()
+- organizations table has id, name UNIQUE NOT NULL, created_at, updated_at
+- users table has role CHECK (role IN ('Admin','ProjectManager','Member')), tenant_id FK organizations(id) ON DELETE CASCADE, index idx_users_tenant_id
+- projects table has status CHECK (status IN ('Active','Archived')), tenant_id FK organizations(id) ON DELETE CASCADE, index idx_projects_tenant_id
+- tasks table has status CHECK (status IN ('ToDo','InProgress','Completed')), project_id FK projects(id) ON DELETE CASCADE, assigned_to FK users(id) ON DELETE SET NULL, index idx_tasks_tenant_id and idx_tasks_project_id
+- comments table has task_id FK tasks(id) ON DELETE CASCADE, user_id FK users(id) ON DELETE CASCADE, tenant_id FK organizations(id) ON DELETE CASCADE, index idx_comments_tenant_id
+- attachments table has task_id FK tasks(id) ON DELETE CASCADE, uploaded_by FK users(id) ON DELETE SET NULL, tenant_id FK organizations(id) ON DELETE CASCADE, index idx_attachments_tenant_id
+- notifications table has user_id FK users(id) ON DELETE CASCADE, read boolean DEFAULT false, tenant_id FK organizations(id) ON DELETE CASCADE, index idx_notifications_tenant_id
+- audit_logs table has user_id FK users(id) ON DELETE SET NULL, action varchar(255) NOT NULL, entity varchar(100) NOT NULL, entity_id uuid NOT NULL, tenant_id FK organizations(id) ON DELETE CASCADE, index idx_audit_logs_tenant_id
+- migrate.ts runs all pending migrations on application bootstrap
 - app.module.ts imports DatabaseModule
 
-Implement every file listed above.
-Modify every file listed above.
 Meet every acceptance criterion before proceeding.
 
 PHASE 5 — VERIFY BUILD
