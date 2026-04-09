@@ -875,7 +875,7 @@ Story Number: 1
 Title: Database Foundation
 
 Description:
-Establish the global Kysely database module with full schema types and a single initial migration creating all tables.
+Establishes the global Kysely database connection, defines all table types, and creates the complete initial schema in a single migration.
 
 Files to create:
 - src/database/database.module.ts
@@ -889,21 +889,23 @@ Files to modify:
 
 Acceptance Criteria:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
-- DatabaseService extends Kysely<Database> and connects using DATABASE_URL environment variable
-- types.ts defines Database interface with tables: organizations, users, projects, tasks
-- All tables except organizations include tenant_id: string (non-Generated)
-- Generated<> is used ONLY for: id, created_at, updated_at, is_active columns
-- organizations table has: id Generated<string>, name string, created_at Generated<Date>
-- users table has: id Generated<string>, tenant_id string, email string, password string, first_name string, last_name string, role 'Admin' | 'ProjectManager' | 'Member', is_active Generated<boolean>, created_at Generated<Date>, updated_at Generated<Date>
-- projects table has: id Generated<string>, tenant_id string, name string, description string | null, status 'Active' | 'Archived', created_at Generated<Date>, updated_at Generated<Date>
-- tasks table has: id Generated<string>, tenant_id string, project_id string, assigned_to string | null, title string, description string | null, status 'ToDo' | 'InProgress' | 'Completed', created_at Generated<Date>, updated_at Generated<Date>
-- 001_initial.ts creates extension "uuid-ossp" if not exists
-- 001_initial.ts creates organizations table with UNIQUE(name)
-- 001_initial.ts creates users table with UNIQUE(email), CHECK role IN ('Admin','ProjectManager','Member'), FK tenant_id REFERENCES organizations(id) ON DELETE CASCADE, indexes idx_users_tenant_id and idx_users_email
-- 001_initial.ts creates projects table with CHECK status IN ('Active','Archived'), FK tenant_id REFERENCES organizations(id) ON DELETE CASCADE, indexes idx_projects_tenant_id and idx_projects_status
-- 001_initial.ts creates tasks table with CHECK status IN ('ToDo','InProgress','Completed'), FK tenant_id REFERENCES organizations(id) ON DELETE CASCADE, FK project_id REFERENCES projects(id) ON DELETE CASCADE, FK assigned_to REFERENCES users(id) ON DELETE SET NULL, indexes idx_tasks_tenant_id, idx_tasks_project_id, idx_tasks_assigned_to, idx_tasks_status
-- migrate.ts executes all pending migrations using Kysely Migrator on application bootstrap
+- DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
+- types.ts defines Database interface including organizations, users, projects, tasks tables
+- All tables except organizations include tenant_id: string in types.ts
+- Generated<> is used ONLY on id, created_at, updated_at, is_active columns
+- users.role is typed as 'Admin' | 'ProjectManager' | 'Member'
+- projects.status is typed as 'Active' | 'Archived'
+- tasks.status is typed as 'ToDo' | 'InProgress' | 'Completed'
+- 001_initial.ts creates organizations, users, projects, tasks tables with all columns defined in PRD
+- users.role has CHECK constraint enforcing ('Admin','ProjectManager','Member')
+- projects.status has CHECK constraint enforcing ('Active','Archived')
+- tasks.status has CHECK constraint enforcing ('ToDo','InProgress','Completed')
+- All foreign keys include proper ON DELETE rules as specified
+- Indexes are created on users(tenant_id), users(email), projects(tenant_id), projects(status), tasks(tenant_id), tasks(project_id), tasks(assignee_id), tasks(status)
+- migrate.ts runs all pending migrations using Kysely Migrator on application startup
 - app.module.ts imports DatabaseModule
+
+Implement every file and requirement exactly as specified above before proceeding.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
@@ -917,12 +919,12 @@ Run in exact order:
   git push origin HEAD
 
 After push succeeds make this HTTP POST request to trigger the next story:
-  POST http://localhost:5678/webhook/ai%20automation
+  POST http://localhost:5678/webhook/ai automation
   Content-Type: application/json
   Body:
   {
     "project": "[object Object]",
-    "webhookUrl": "http://localhost:5678/webhook/ai%20automation",
+    "webhookUrl": "http://localhost:5678/webhook/ai automation",
     "state": {
       "completed_stories": [1],
       "current_story": null

@@ -348,7 +348,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_assigned_to')
+    .createIndex('idx_tasks_assignee_id')
     .on('tasks')
     .column('assignee_id')
     .execute();
@@ -357,6 +357,30 @@ export async function up(db: Kysely<any>): Promise<void> {
     .createIndex('idx_tasks_status')
     .on('tasks')
     .column('status')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_comments_tenant_id')
+    .on('comments')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_attachments_tenant_id')
+    .on('attachments')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_notifications_tenant_id')
+    .on('notifications')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_audit_logs_tenant_id')
+    .on('audit_logs')
+    .column('tenant_id')
     .execute();
 
   await db.schema
