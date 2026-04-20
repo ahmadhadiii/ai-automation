@@ -4,14 +4,12 @@ export interface Database {
   organizations: OrganizationsTable;
   users: UsersTable;
   projects: ProjectsTable;
-  project_members: ProjectMembersTable;
   tasks: TasksTable;
   comments: CommentsTable;
   attachments: AttachmentsTable;
   notifications: NotificationsTable;
   audit_logs: AuditLogsTable;
   refresh_tokens: RefreshTokensTable;
-  dashboard_views: DashboardViewsTable;
 }
 
 export interface OrganizationsTable {
@@ -107,15 +105,6 @@ export interface AuditLogsTable {
   created_at: Generated<Date>;
 }
 
-export interface ProjectMembersTable {
-  id: Generated<string>;
-  tenant_id: string;
-  project_id: string;
-  user_id: string;
-  role: string;
-  created_at: Generated<Date>;
-}
-
 export interface RefreshTokensTable {
   id: Generated<string>;
   tenant_id: string;
@@ -123,14 +112,4 @@ export interface RefreshTokensTable {
   token: string;
   expires_at: Date;
   created_at: Generated<Date>;
-}
-
-export interface DashboardViewsTable {
-  id: Generated<string>;
-  tenant_id: string;
-  user_id: string;
-  name: string;
-  config: any | null;
-  created_at: Generated<Date>;
-  updated_at: Generated<Date>;
 }
