@@ -96,6 +96,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['id'],
       (cb) => cb.onDelete('restrict'),
     )
+    .addUniqueConstraint('uq_projects_tenant_name', ['tenant_id', 'name'])
     .execute();
 
   await sql`ALTER TABLE projects ADD CONSTRAINT chk_projects_status CHECK (status IN ('Active', 'Archived'))`.execute(db);
@@ -140,7 +141,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['assignee_id'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('restrict'),
+      (cb) => cb.onDelete('set null'),
     )
     .addForeignKeyConstraint(
       'fk_tasks_created_by',
@@ -197,7 +198,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     )
     .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('task_id', 'uuid', (col) => col.notNull())
-    .addColumn('uploaded_by', 'uuid')
+    .addColumn('uploaded_by', 'uuid', (col) => col.notNull())
     .addColumn('file_name', 'varchar', (col) => col.notNull())
     .addColumn('file_path', 'varchar', (col) => col.notNull())
     .addColumn('file_size', 'integer', (col) => col.notNull())
@@ -216,7 +217,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['uploaded_by'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('set null'),
+      (cb) => cb.onDelete('cascade'),
     )
     .addForeignKeyConstraint(
       'fk_attachments_tenant',
@@ -304,6 +305,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('id', 'uuid', (col) =>
       col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
     )
+    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('user_id', 'uuid', (col) => col.notNull())
     .addColumn('token', 'varchar', (col) => col.notNull())
     .addColumn('expires_at', sql`timestamptz`, (col) => col.notNull())
@@ -314,6 +316,13 @@ export async function up(db: Kysely<any>): Promise<void> {
       'fk_refresh_tokens_user',
       ['user_id'],
       'users',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_refresh_tokens_tenant',
+      ['tenant_id'],
+      'organizations',
       ['id'],
       (cb) => cb.onDelete('cascade'),
     )
@@ -357,7 +366,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_assigned_to')
+    .createIndex('idx_tasks_assignee_id')
     .on('tasks')
     .column('assignee_id')
     .execute();
@@ -366,6 +375,12 @@ export async function up(db: Kysely<any>): Promise<void> {
     .createIndex('idx_tasks_status')
     .on('tasks')
     .column('status')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_comments_tenant_id')
+    .on('comments')
+    .column('tenant_id')
     .execute();
 
   await db.schema
@@ -378,6 +393,12 @@ export async function up(db: Kysely<any>): Promise<void> {
     .createIndex('idx_attachments_task_id')
     .on('attachments')
     .column('task_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_notifications_tenant_id')
+    .on('notifications')
+    .column('tenant_id')
     .execute();
 
   await db.schema
