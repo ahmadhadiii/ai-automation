@@ -646,7 +646,6 @@ PHASE 3 — ARCHITECTURE RULES (follow exactly)
 GLOBAL GUARDS:
 Guards are registered globally via APP_GUARD in app.module.ts.
 NEVER add @UseGuards() to any controller or method — not even once.
-Adding @UseGuards() on a controller causes double-guard execution and auth bugs.
 
 AUTHENTICATION:
 JWT Payload into token: { sub: userId, email, role, tenant_id }
@@ -668,201 +667,13 @@ REGISTRATION RULE:
 Register endpoint NEVER accepts role from body. Hardcode: role: 'Member'
 
 KYSELY SELECT RULES:
-NEVER: .select(['id', 'email']) — TypeScript error, Kysely rejects arrays
+NEVER: .select(['id', 'email'])
 CORRECT: .selectAll()
 CORRECT: .select('id').select('email')
 
 KYSELY Generated<T> RULES:
 Generated<> ONLY for: id, created_at, updated_at, is_active, read
-Everything else is plain string or string | null:
-  tenant_id        → string (never Generated)
-  email            → string
-  role             → string
-  organization_id  → string
-  created_by       → string
-  assignee_id      → string | null
-  description      → string | null
-  due_date         → string | null
-  deadline         → string | null
-
-COMPLETE types.ts — use this exact content:
-import { Generated } from 'kysely';
-export interface Database {
-  organizations: OrganizationsTable;
-  users: UsersTable;
-  projects: ProjectsTable;
-  tasks: TasksTable;
-  comments: CommentsTable;
-  attachments: AttachmentsTable;
-  notifications: NotificationsTable;
-  audit_logs: AuditLogsTable;
-  refresh_tokens: RefreshTokensTable;
-}
-export interface OrganizationsTable {
-  id: Generated<string>;
-  tenant_id: string;
-  name: string;
-  created_at: Generated<Date>;
-}
-export interface UsersTable {
-  id: Generated<string>;
-  tenant_id: string;
-  organization_id: string;
-  email: string;
-  password_hash: string;
-  first_name: string;
-  last_name: string;
-  role: string;
-  is_active: Generated<boolean>;
-  created_at: Generated<Date>;
-  updated_at: Generated<Date>;
-}
-export interface ProjectsTable {
-  id: Generated<string>;
-  tenant_id: string;
-  organization_id: string;
-  name: string;
-  description: string | null;
-  deadline: string | null;
-  status: string;
-  created_by: string;
-  created_at: Generated<Date>;
-  updated_at: Generated<Date>;
-}
-export interface TasksTable {
-  id: Generated<string>;
-  tenant_id: string;
-  project_id: string;
-  assignee_id: string | null;
-  title: string;
-  description: string | null;
-  status: string;
-  priority: string | null;
-  due_date: string | null;
-  created_by: string;
-  created_at: Generated<Date>;
-  updated_at: Generated<Date>;
-}
-export interface CommentsTable {
-  id: Generated<string>;
-  tenant_id: string;
-  task_id: string;
-  user_id: string;
-  content: string;
-  created_at: Generated<Date>;
-}
-export interface AttachmentsTable {
-  id: Generated<string>;
-  tenant_id: string;
-  task_id: string;
-  uploaded_by: string;
-  file_name: string;
-  file_path: string;
-  file_size: number;
-  created_at: Generated<Date>;
-}
-export interface NotificationsTable {
-  id: Generated<string>;
-  tenant_id: string;
-  user_id: string;
-  type: string;
-  message: string;
-  read: Generated<boolean>;
-  entity_type: string | null;
-  entity_id: string | null;
-  created_at: Generated<Date>;
-}
-export interface AuditLogsTable {
-  id: Generated<string>;
-  tenant_id: string;
-  organization_id: string;
-  user_id: string | null;
-  action: string;
-  entity_type: string;
-  entity_id: string | null;
-  metadata: any | null;
-  created_at: Generated<Date>;
-}
-export interface RefreshTokensTable {
-  id: Generated<string>;
-  user_id: string;
-  token: string;
-  expires_at: Date;
-  created_at: Generated<Date>;
-}
-
-DATABASE PATTERNS:
-
-SELECT with pagination:
-  const page = Number(query.page) || 1;
-  const limit = Math.min(Number(query.limit) || 20, 100);
-  const offset = (page - 1) * limit;
-  const [{ count }] = await this.db.selectFrom('table').select(this.db.fn.count('id').as('count')).where('tenant_id', '=', tenantId).execute();
-  const data = await this.db.selectFrom('table').selectAll().where('tenant_id', '=', tenantId).orderBy('created_at', 'desc').limit(limit).offset(offset).execute();
-  return { data, meta: { total: Number(count), page, limit, totalPages: Math.ceil(Number(count) / limit) } };
-
-INSERT:
-  const record = await this.db.insertInto('table').values({ id: uuidv4(), tenant_id: tenantId, ...dto }).returningAll().executeTakeFirstOrThrow();
-
-UPDATE:
-  const record = await this.db.updateTable('table').set({ ...dto, updated_at: new Date() }).where('id', '=', id).where('tenant_id', '=', tenantId).returningAll().executeTakeFirst();
-  if (!record) throw new NotFoundException('Not found');
-
-DELETE:
-  const result = await this.db.deleteFrom('table').where('id', '=', id).where('tenant_id', '=', tenantId).executeTakeFirst();
-  if (!result.numDeletedRows) throw new NotFoundException('Not found');
-
-SELECT ONE:
-  const record = await this.db.selectFrom('table').selectAll().where('id', '=', id).where('tenant_id', '=', tenantId).executeTakeFirst();
-  if (!record) throw new NotFoundException('Not found');
-
-CONTROLLER PATTERN — NO @UseGuards() anywhere:
-@Controller('resource')
-export class ResourceController {
-  constructor(private readonly service: ResourceService) {}
-  @Get() findAll(@Request() req, @Query() query: any) { return this.service.findAll(req.user.tenant_id, query); }
-  @Post() @HttpCode(HttpStatus.CREATED) create(@Request() req, @Body() dto: CreateDto) { return this.service.create(req.user.id, req.user.tenant_id, dto); }
-  @Get(':id') findOne(@Request() req, @Param('id') id: string) { return this.service.findOne(id, req.user.tenant_id); }
-  @Put(':id') update(@Request() req, @Param('id') id: string, @Body() dto: UpdateDto) { return this.service.update(id, req.user.tenant_id, dto); }
-  @Delete(':id') @Roles('Admin') @HttpCode(HttpStatus.NO_CONTENT) remove(@Request() req, @Param('id') id: string) { return this.service.remove(id, req.user.tenant_id); }
-}
-
-MODULE PATTERN:
-@Module({
-  controllers: [ResourceController],
-  providers: [ResourceService],
-  exports: [ResourceService],
-})
-export class ResourceModule {}
-
-app.module.ts — every new module MUST be added to imports[]:
-@Module({
-  imports: [
-    DatabaseModule,
-    AuthModule,
-  ],
-  providers: [
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: RolesGuard },
-  ],
-})
-export class AppModule {}
-
-FILES THAT MUST NEVER BE DUPLICATED:
-Only ONE DatabaseModule: src/database/database.module.ts
-Only ONE types.ts: src/database/types.ts
-Only ONE app.module.ts: src/app.module.ts
-NEVER create: src/modules/database/, src/database/kysely.module.ts, src/database/database.types.ts
-
-ADDING A NEW MODULE CHECKLIST:
-1. Create src/{module}/{module}.module.ts
-2. Create src/{module}/{module}.controller.ts — NO @UseGuards()
-3. Create src/{module}/{module}.service.ts — inject DatabaseService
-4. Create src/{module}/dto/create-{module}.dto.ts
-5. Create src/{module}/dto/update-{module}.dto.ts
-6. Verify every query has .where('tenant_id', '=', tenantId)
-7. Verify every list endpoint returns { data, meta }
-8. Add {Module}Module to imports[] in src/app.module.ts
+Everything else is plain string or string | null
 
 ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 1. NEVER add @UseGuards() to any controller
@@ -876,48 +687,48 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 9. Project status: 'Active', 'Archived'
 10. Roles: 'Admin', 'ProjectManager', 'Member'
 11. Every new module added to app.module.ts imports[]
-12. NEVER .select(['col1','col2']) — use .selectAll()
+12. NEVER .select(['col1','col2'])
 13. EVERY table interface has tenant_id: string
 
 PHASE 4 — IMPLEMENT THE STORY
 
-Selected Story:
-Story Number: 1
-Title: Database Foundation
+STORY NUMBER: 1  
+TITLE: Database Foundation
 
-Description:
-Establishes the global Kysely database connection, defines all table types, and creates all database tables with constraints and indexes in a single migration.
+DESCRIPTION:
+Establish the global Kysely database layer with full schema types and a single migration creating all tables with constraints and indexes.
 
-Files to create:
+FILES TO CREATE:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-Files to modify:
+FILES TO MODIFY:
 - src/app.module.ts
 
-Acceptance Criteria:
+ACCEPTANCE CRITERIA:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines Database interface including organizations, users, projects, tasks tables
-- Every table interface includes tenant_id: string except organizations which uses id as tenant root
-- Generated<> is used ONLY on id, created_at, updated_at columns
-- 001_initial.ts creates organizations, users, projects, tasks tables with all columns, CHECK constraints, foreign keys, ON DELETE CASCADE rules, and required indexes exactly as specified in the PRD
-- users.role CHECK constraint allows only 'Admin','ProjectManager','Member'
-- projects.status CHECK constraint allows only 'Active','Archived'
-- tasks.status CHECK constraint allows only 'ToDo','InProgress','Completed'
-- All foreign keys enforce tenant isolation via tenant_id columns
-- migrate.ts runs all pending migrations on application bootstrap
+- types.ts defines Database interface including organizations, users, projects, tasks, comments tables
+- All tables except organizations include tenant_id: string in types.ts
+- Generated<> is used ONLY for id, created_at, updated_at, is_active columns
+- Nullable DB columns are typed as string | null in types.ts
+- 001_initial.ts creates extension uuid-ossp if not exists
+- 001_initial.ts creates organizations table with id uuid PK default uuid_generate_v4(), name varchar(255) not null, created_at timestamptz default now()
+- 001_initial.ts creates users table with FK tenant_id references organizations(id) on delete cascade, unique email, role check constraint IN ('Admin','ProjectManager','Member'), indexes idx_users_tenant_id and idx_users_email_unique
+- 001_initial.ts creates projects table with status check constraint IN ('Active','Archived') and index idx_projects_tenant_id
+- 001_initial.ts creates tasks table with FK project_id references projects(id) on delete cascade, FK assigned_to references users(id) on delete set null, status check constraint IN ('ToDo','InProgress','Completed'), indexes idx_tasks_tenant_id and idx_tasks_project_id
+- 001_initial.ts creates comments table with FK task_id references tasks(id) on delete cascade, FK user_id references users(id) on delete cascade, indexes idx_comments_task_id and idx_comments_tenant_id
+- migrate.ts runs all pending migrations using Kysely Migrator on application startup
 - app.module.ts imports DatabaseModule
 
-Implement every requirement fully before continuing.
+Implement everything strictly according to ARCHITECTURE.md and all global rules above.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
-Fix all errors. Never use @ts-ignore. Repeat until zero errors.
-Do NOT proceed to Phase 6 with a broken build.
+Fix all errors. Repeat until zero errors.
 
 PHASE 6 — COMMIT AND PUSH
 Run in exact order:
@@ -925,13 +736,13 @@ Run in exact order:
   git commit -m "feat: story-1 Database Foundation"
   git push origin HEAD
 
-After push succeeds make this HTTP POST request to trigger the next story:
-  POST http://localhost:5678/webhook/ai%20automation
+After push succeeds make this HTTP POST request:
+  POST http://localhost:5678/webhook/ai automation
   Content-Type: application/json
   Body:
   {
     "project": "[object Object]",
-    "webhookUrl": "http://localhost:5678/webhook/ai%20automation",
+    "webhookUrl": "http://localhost:5678/webhook/ai automation",
     "state": {
       "completed_stories": [1],
       "current_story": null
