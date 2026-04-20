@@ -5,6 +5,7 @@ export interface Database {
   users: UsersTable;
   projects: ProjectsTable;
   tasks: TasksTable;
+  task_assignments: TaskAssignmentsTable;
   comments: CommentsTable;
   attachments: AttachmentsTable;
   notifications: NotificationsTable;
@@ -122,6 +123,14 @@ export interface ProjectMembersTable {
   project_id: string;
   user_id: string;
   role: string;
+  created_at: Generated<Date>;
+}
+
+export interface TaskAssignmentsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  task_id: string;
+  user_id: string;
   created_at: Generated<Date>;
 }
 

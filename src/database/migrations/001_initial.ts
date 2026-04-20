@@ -55,7 +55,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await sql`ALTER TABLE users ADD CONSTRAINT chk_users_role CHECK (role IN ('Admin', 'ProjectManager', 'Member'))`.execute(db);
-  await sql`ALTER TABLE users ADD CONSTRAINT uq_users_tenant_email UNIQUE (tenant_id, email)`.execute(db);
+  await sql`ALTER TABLE users ADD CONSTRAINT uq_users_email UNIQUE (email)`.execute(db);
 
   // Projects
   await db.schema
@@ -154,6 +154,43 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await sql`ALTER TABLE tasks ADD CONSTRAINT chk_tasks_status CHECK (status IN ('ToDo', 'InProgress', 'Completed'))`.execute(db);
+
+  // Task Assignments
+  await db.schema
+    .createTable('task_assignments')
+    .addColumn('id', 'uuid', (col) =>
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
+    )
+    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
+    .addColumn('task_id', 'uuid', (col) => col.notNull())
+    .addColumn('user_id', 'uuid', (col) => col.notNull())
+    .addColumn('created_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addForeignKeyConstraint(
+      'fk_task_assignments_tenant',
+      ['tenant_id'],
+      'organizations',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_task_assignments_task',
+      ['task_id'],
+      'tasks',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_task_assignments_user',
+      ['user_id'],
+      'users',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .execute();
+
+  await sql`ALTER TABLE task_assignments ADD CONSTRAINT uq_task_assignments UNIQUE (task_id, user_id)`.execute(db);
 
   // Comments
   await db.schema
@@ -537,6 +574,24 @@ export async function up(db: Kysely<any>): Promise<void> {
     .on('dashboard_views')
     .column('user_id')
     .execute();
+
+  await db.schema
+    .createIndex('idx_task_assignments_tenant')
+    .on('task_assignments')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_task_assignments_task')
+    .on('task_assignments')
+    .column('task_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_task_assignments_user')
+    .on('task_assignments')
+    .column('user_id')
+    .execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
@@ -546,6 +601,7 @@ export async function down(db: Kysely<any>): Promise<void> {
   await db.schema.dropTable('notifications').execute();
   await db.schema.dropTable('attachments').execute();
   await db.schema.dropTable('comments').execute();
+  await db.schema.dropTable('task_assignments').execute();
   await db.schema.dropTable('tasks').execute();
   await db.schema.dropTable('project_members').execute();
   await db.schema.dropTable('projects').execute();
