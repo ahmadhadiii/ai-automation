@@ -1,5 +1,5 @@
 === COMPLETED STORIES ===
-Stories already implemented: 1, 2, 3
+Stories already implemented: 1
 Do NOT re-implement these. Build on top of existing code.
 
 === CURRENT REPO FILE TREE ===
@@ -646,6 +646,7 @@ PHASE 3 — ARCHITECTURE RULES (follow exactly)
 GLOBAL GUARDS:
 Guards are registered globally via APP_GUARD in app.module.ts.
 NEVER add @UseGuards() to any controller or method — not even once.
+Adding @UseGuards() on a controller causes double-guard execution and auth bugs.
 
 AUTHENTICATION:
 JWT Payload into token: { sub: userId, email, role, tenant_id }
@@ -880,38 +881,32 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 
 PHASE 4 — IMPLEMENT THE STORY
 
-STORY NUMBER: 1
-TITLE: Database Foundation
+STORY 1: Database Foundation
 
-DESCRIPTION:
-Establish the global DatabaseModule with Kysely integration, all table types, and a single initial migration creating the complete schema.
+Description:
+Establish global Kysely database integration with full schema types and a single migration creating all tables.
 
-FILES TO CREATE:
+Files to create:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-FILES TO MODIFY:
+Files to modify:
 - src/app.module.ts
 
-ACCEPTANCE CRITERIA:
+Acceptance Criteria:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines Database interface with tables: organizations, users, projects, tasks, comments, attachments, notifications, audit_logs
-- All tables except organizations include tenant_id: string in types.ts
-- Generated<> is used ONLY for id, created_at, updated_at, is_active, read columns
-- 001_initial.ts creates organizations table without tenant_id column
-- 001_initial.ts creates users table with tenant_id FK to organizations(id) ON DELETE CASCADE, UNIQUE(tenant_id,email), and index on tenant_id
-- 001_initial.ts creates projects table with tenant_id FK, status CHECK ('Active','Archived'), indexes on tenant_id and status
-- 001_initial.ts creates tasks table with tenant_id FK, project_id FK, assigned_to FK, status CHECK ('ToDo','InProgress','Completed'), and indexes on tenant_id, project_id, assigned_to
-- 001_initial.ts creates comments table with tenant_id FK, task_id FK ON DELETE CASCADE, user_id FK ON DELETE CASCADE, and index on tenant_id
-- 001_initial.ts creates attachments table with tenant_id FK, task_id FK ON DELETE CASCADE, uploaded_by FK to users(id) ON DELETE CASCADE, and index on tenant_id
-- 001_initial.ts creates notifications table with tenant_id FK, user_id FK ON DELETE CASCADE, read BOOLEAN DEFAULT false, and index on tenant_id and user_id
-- 001_initial.ts creates audit_logs table with tenant_id FK, user_id FK NULL ON DELETE SET NULL, action VARCHAR(100) NOT NULL, entity VARCHAR(100) NOT NULL, entity_id UUID NOT NULL, metadata JSONB NULL, and index on tenant_id
+- types.ts defines Database interface with tables: organizations, users, projects, tasks, comments, attachments, notifications, audit_logs, refresh_tokens — every table includes tenant_id: string
+- Generated<> is used ONLY for id, created_at, updated_at, is_active, and read columns
+- 001_initial.ts creates ALL tables with proper UUID PKs, CHECK constraints for role/status enums, foreign keys with ON DELETE rules, and indexes including comments.task_id, attachments.task_id, notifications.user_id, audit_logs.user_id
+- All tables except organizations include tenant_id UUID NOT NULL referencing organizations(id) ON DELETE CASCADE
 - migrate.ts runs all pending migrations on application bootstrap
 - app.module.ts imports DatabaseModule
+
+Implement everything exactly according to ARCHITECTURE rules and database patterns.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
@@ -925,12 +920,12 @@ Run in exact order:
   git push origin HEAD
 
 After push succeeds make this HTTP POST request to trigger the next story:
-  POST http://localhost:5678/webhook/ai%20automation
+  POST http://localhost:5678/webhook/ai automation
   Content-Type: application/json
   Body:
   {
     "project": "[object Object]",
-    "webhookUrl": "http://localhost:5678/webhook/ai%20automation",
+    "webhookUrl": "http://localhost:5678/webhook/ai automation",
     "state": {
       "completed_stories": [1],
       "current_story": null
