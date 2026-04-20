@@ -792,6 +792,7 @@ export interface RefreshTokensTable {
 }
 
 DATABASE PATTERNS:
+
 SELECT with pagination:
   const page = Number(query.page) || 1;
   const limit = Math.min(Number(query.limit) || 20, 100);
@@ -834,6 +835,35 @@ MODULE PATTERN:
 })
 export class ResourceModule {}
 
+app.module.ts — every new module MUST be added to imports[]:
+@Module({
+  imports: [
+    DatabaseModule,
+    AuthModule,
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
+})
+export class AppModule {}
+
+FILES THAT MUST NEVER BE DUPLICATED:
+Only ONE DatabaseModule: src/database/database.module.ts
+Only ONE types.ts: src/database/types.ts
+Only ONE app.module.ts: src/app.module.ts
+NEVER create: src/modules/database/, src/database/kysely.module.ts, src/database/database.types.ts
+
+ADDING A NEW MODULE CHECKLIST:
+1. Create src/{module}/{module}.module.ts
+2. Create src/{module}/{module}.controller.ts — NO @UseGuards()
+3. Create src/{module}/{module}.service.ts — inject DatabaseService
+4. Create src/{module}/dto/create-{module}.dto.ts
+5. Create src/{module}/dto/update-{module}.dto.ts
+6. Verify every query has .where('tenant_id', '=', tenantId)
+7. Verify every list endpoint returns { data, meta }
+8. Add {Module}Module to imports[] in src/app.module.ts
+
 ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 1. NEVER add @UseGuards() to any controller
 2. Use @Public() for unauthenticated routes
@@ -851,33 +881,37 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 
 PHASE 4 — IMPLEMENT THE STORY
 
-STORY 1 — Database Foundation
+STORY TO IMPLEMENT:
+Story Number: 1
+Title: Database Foundation
+Description: Establish global Kysely database integration with all tables, types, and initial migration for the entire multi-tenant system.
 
-Implement the global Kysely database layer with full multi-tenant schema and migration system.
-
-Files to create:
+FILES TO CREATE:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-Files to modify:
+FILES TO MODIFY:
 - src/app.module.ts
 
-Acceptance Criteria:
+ACCEPTANCE CRITERIA:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines Database interface including organizations, users, projects, and tasks tables
-- Every table except organizations includes tenant_id: string
-- Generated<> is used ONLY on id, created_at, and updated_at columns
-- All nullable columns are typed as string | null
+- types.ts defines interfaces for organizations, users, projects, tasks, comments tables and Database interface mapping table names to interfaces
+- Every table interface includes tenant_id: string except organizations which still includes tenant_id: string for consistency
+- Generated<> is used ONLY on id, created_at, updated_at columns and nowhere else
+- users.role is typed as 'Admin' | 'ProjectManager' | 'Member'
+- projects.status is typed as 'Active' | 'Archived'
+- tasks.status is typed as 'ToDo' | 'InProgress' | 'Completed'
 - 001_initial.ts creates uuid-ossp extension if not exists
-- 001_initial.ts creates organizations, users, projects, and tasks tables with all columns defined in SRS
-- All foreign keys include ON DELETE CASCADE except tasks.assigned_to which uses ON DELETE SET NULL
-- All unique constraints and indexes defined exactly as specified in SRS
-- All CHECK constraints enforce allowed role, project status, and task status values
-- migrate.ts runs all pending migrations on application startup
+- 001_initial.ts creates organizations table with id UUID PK default uuid_generate_v4(), name unique, tenant_id column, created_at default now()
+- 001_initial.ts creates users table with FK tenant_id references organizations(id) ON DELETE CASCADE, email unique, role CHECK constraint for ('Admin','ProjectManager','Member'), indexes on tenant_id and email
+- 001_initial.ts creates projects table with FK tenant_id references organizations(id) ON DELETE CASCADE, FK created_by references users(id), unique (tenant_id, name), CHECK constraint for status ('Active','Archived')
+- 001_initial.ts creates tasks table with FK tenant_id references organizations(id) ON DELETE CASCADE, FK project_id references projects(id) ON DELETE CASCADE, FK assigned_to references users(id), CHECK constraint for status ('ToDo','InProgress','Completed'), indexes on tenant_id, project_id, assigned_to
+- 001_initial.ts creates comments table with FK tenant_id references organizations(id) ON DELETE CASCADE, FK task_id references tasks(id) ON DELETE CASCADE, FK author_id references users(id), indexes on tenant_id and task_id
+- migrate.ts runs all pending migrations using Kysely Migrator on application startup
 - app.module.ts imports DatabaseModule
 
 PHASE 5 — VERIFY BUILD
