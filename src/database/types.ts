@@ -110,7 +110,6 @@ export interface AuditLogsTable {
 
 export interface RefreshTokensTable {
   id: Generated<string>;
-  tenant_id: string;
   user_id: string;
   token: string;
   expires_at: Date;

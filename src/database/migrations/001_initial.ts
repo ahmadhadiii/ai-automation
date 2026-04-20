@@ -55,7 +55,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await sql`ALTER TABLE users ADD CONSTRAINT chk_users_role CHECK (role IN ('Admin', 'ProjectManager', 'Member'))`.execute(db);
-  await sql`ALTER TABLE users ADD CONSTRAINT uq_users_email UNIQUE (email)`.execute(db);
+  await sql`ALTER TABLE users ADD CONSTRAINT uq_users_tenant_email UNIQUE (tenant_id, email)`.execute(db);
 
   // Projects
   await db.schema
@@ -95,7 +95,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['created_by'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('cascade'),
+      (cb) => cb.onDelete('restrict'),
     )
     .execute();
 
@@ -142,7 +142,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['assignee_id'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('set null'),
+      (cb) => cb.onDelete('restrict'),
     )
     .addForeignKeyConstraint(
       'fk_tasks_created_by',

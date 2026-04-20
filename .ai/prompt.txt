@@ -151,6 +151,7 @@ export interface Database {
   users: UsersTable;
   projects: ProjectsTable;
   tasks: TasksTable;
+  task_assignments: TaskAssignmentsTable;
   comments: CommentsTable;
   attachments: AttachmentsTable;
   notifications: NotificationsTable;
@@ -268,6 +269,14 @@ export interface ProjectMembersTable {
   project_id: string;
   user_id: string;
   role: string;
+  created_at: Generated<Date>;
+}
+
+export interface TaskAssignmentsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  task_id: string;
+  user_id: string;
   created_at: Generated<Date>;
 }
 
@@ -571,43 +580,6 @@ export class LoginDto {
 === YOUR TASK ===
 DIRECT AGENT INSTRUCTION:
 
-You are Claude Code working inside a real git repository.
-Implement exactly ONE backend story.
-Modify and create repository files directly.
-Do not explain. Do not summarize. Do not output markdown. Only make code changes.
-
-Stack: NestJS + Kysely + PostgreSQL
-
-BEFORE WRITING CODE — read and understand these files:
-- src/app.module.ts
-- src/database/database.service.ts
-- src/database/types.ts
-- src/auth/auth.guard.ts
-- src/auth/jwt.strategy.ts
-- src/auth/public.decorator.ts
-- src/auth/roles.decorator.ts
-
-BEFORE implementing the story, fix these bugs in existing files:
-1. Replace req.user.sub with req.user.id in all controllers
-2. Remove all @UseGuards() from controllers — guards are global via APP_GUARD
-3. Change @Roles('ADMIN') to @Roles('Admin') everywhere
-4. Remove role field from src/auth/dto/register.dto.ts
-5. Change auth.service.ts to use hardcoded 'Member' instead of dto.role
-6. Delete src/modules/database/ folder entirely
-7. Delete src/database/kysely.module.ts
-8. Delete src/database/database.types.ts
-9. Remove KyselyModule import from app.module.ts
-10. Add RefreshTokensTable and ProjectMembersTable to src/database/types.ts
-12. In src/database/types.ts, make sure EVERY table interface has tenant_id: string as a property — if it is missing, add it
-13. In ALL service files, replace .select(['col1', 'col2', ...]) with .selectAll() — Kysely does not accept string arrays in .select()
-14. In src/database/types.ts fix Generated<> usage: only id, created_at, updated_at, is_active should use Generated<>. All other columns (tenant_id, email, name, role, password_hash, organization_id, created_by, project_id, etc.) must be plain string or string | null
-15. In tasks service and DTO files, replace any occurrence of 'TODO' with 'ToDo', 'IN_PROGRESS' with 'InProgress', 'DONE' with 'Completed'
-16. Make sure TasksTable has assignee_id: string | null as a property
-THEN implement the story task below.
-
-Task:
-DIRECT AGENT INSTRUCTION:
-
 You are Claude Code operating inside a real git repository.
 Stack: NestJS 10 + Kysely 0.27 + PostgreSQL
 You have full access to read, create, modify files and run shell commands.
@@ -882,34 +854,34 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 PHASE 4 — IMPLEMENT THE STORY
 
 STORY TO IMPLEMENT:
-Story 1 — Database Foundation
-Description: Establish the complete database layer with Kysely, all table types, and a single migration creating the full schema.
+Story Number: 1
+Title: Database Foundation
+Description: Establish the global Kysely database connection, define all table types, and create a single migration that builds the complete multi-tenant schema.
 
-Files to create:
+FILES TO CREATE:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-Files to modify:
+FILES TO MODIFY:
 - src/app.module.ts
 
-Acceptance Criteria:
+ACCEPTANCE CRITERIA:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
-- DatabaseService extends Kysely<Database> and connects using DATABASE_URL environment variable
-- types.ts defines Database interface with tables: organizations, users, projects, tasks, task_assignments
-- Every table interface includes tenant_id: string except organizations
-- Generated<> is used ONLY for id, created_at, updated_at, and is_active columns
-- users.role is typed as 'Admin' | 'ProjectManager' | 'Member'
-- projects.status is typed as 'Active' | 'Archived'
-- tasks.status is typed as 'ToDo' | 'InProgress' | 'Completed'
-- 001_initial.ts creates ALL tables with correct primary keys, foreign keys, ON DELETE CASCADE rules, UNIQUE constraints, CHECK constraints, and indexes exactly as defined in the SRS
-- users.email is globally UNIQUE and indexed
-- projects has UNIQUE(tenant_id, name)
-- task_assignments has UNIQUE(task_id, user_id)
-- All foreign keys reference correct parent tables with ON DELETE CASCADE
-- migrate.ts runs all pending migrations on application startup
+- DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
+- types.ts defines Database interface including tables: organizations, users, projects, tasks
+- Every table interface except organizations includes tenant_id: string
+- Generated<> is used ONLY on id, created_at, updated_at, is_active columns
+- users table type includes id, tenant_id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at
+- projects table type includes id, tenant_id, name, description, status, created_by, created_at, updated_at
+- tasks table type includes id, tenant_id, project_id, title, description, status, assignee_id, created_at, updated_at
+- 001_initial.ts creates extension "uuid-ossp" if not exists
+- 001_initial.ts creates organizations, users, projects, tasks tables with all columns, constraints, CHECK rules, FKs, ON DELETE behavior, and indexes exactly as defined
+- users table has UNIQUE (tenant_id, email)
+- All foreign keys use correct ON DELETE rules: users.tenant_id CASCADE, projects.created_by RESTRICT, tasks.project_id CASCADE, tasks.assignee_id RESTRICT
+- migrate.ts executes all pending migrations on application startup
 - app.module.ts imports DatabaseModule
 
 PHASE 5 — VERIFY BUILD
@@ -924,12 +896,12 @@ Run in exact order:
   git push origin HEAD
 
 After push succeeds make this HTTP POST request to trigger the next story:
-  POST http://localhost:5678/webhook/ai automation
+  POST http://localhost:5678/webhook/ai%20automation
   Content-Type: application/json
   Body:
   {
     "project": "[object Object]",
-    "webhookUrl": "http://localhost:5678/webhook/ai automation",
+    "webhookUrl": "http://localhost:5678/webhook/ai%20automation",
     "state": {
       "completed_stories": [1],
       "current_story": null
