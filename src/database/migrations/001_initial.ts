@@ -24,7 +24,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     )
     .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('organization_id', 'uuid', (col) => col.notNull())
-    .addColumn('email', 'varchar', (col) => col.notNull())
+    .addColumn('email', 'varchar', (col) => col.notNull().unique())
     .addColumn('password_hash', 'varchar', (col) => col.notNull())
     .addColumn('first_name', 'varchar', (col) => col.notNull())
     .addColumn('last_name', 'varchar', (col) => col.notNull())
@@ -55,7 +55,6 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await sql`ALTER TABLE users ADD CONSTRAINT chk_users_role CHECK (role IN ('Admin', 'ProjectManager', 'Member'))`.execute(db);
-  await sql`ALTER TABLE users ADD CONSTRAINT uq_users_tenant_email UNIQUE (tenant_id, email)`.execute(db);
 
   // Projects
   await db.schema
@@ -100,7 +99,6 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await sql`ALTER TABLE projects ADD CONSTRAINT chk_projects_status CHECK (status IN ('Active', 'Archived'))`.execute(db);
-  await sql`ALTER TABLE projects ADD CONSTRAINT uq_projects_tenant_name UNIQUE (tenant_id, name)`.execute(db);
 
   // Tasks
   await db.schema
@@ -154,43 +152,6 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await sql`ALTER TABLE tasks ADD CONSTRAINT chk_tasks_status CHECK (status IN ('ToDo', 'InProgress', 'Completed'))`.execute(db);
-
-  // Task Assignments
-  await db.schema
-    .createTable('task_assignments')
-    .addColumn('id', 'uuid', (col) =>
-      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
-    )
-    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
-    .addColumn('task_id', 'uuid', (col) => col.notNull())
-    .addColumn('user_id', 'uuid', (col) => col.notNull())
-    .addColumn('created_at', sql`timestamptz`, (col) =>
-      col.notNull().defaultTo(sql`now()`),
-    )
-    .addForeignKeyConstraint(
-      'fk_task_assignments_tenant',
-      ['tenant_id'],
-      'organizations',
-      ['id'],
-      (cb) => cb.onDelete('cascade'),
-    )
-    .addForeignKeyConstraint(
-      'fk_task_assignments_task',
-      ['task_id'],
-      'tasks',
-      ['id'],
-      (cb) => cb.onDelete('cascade'),
-    )
-    .addForeignKeyConstraint(
-      'fk_task_assignments_user',
-      ['user_id'],
-      'users',
-      ['id'],
-      (cb) => cb.onDelete('cascade'),
-    )
-    .execute();
-
-  await sql`ALTER TABLE task_assignments ADD CONSTRAINT uq_task_assignments UNIQUE (task_id, user_id)`.execute(db);
 
   // Comments
   await db.schema
@@ -337,83 +298,12 @@ export async function up(db: Kysely<any>): Promise<void> {
     )
     .execute();
 
-  // Project Members
-  await db.schema
-    .createTable('project_members')
-    .addColumn('id', 'uuid', (col) =>
-      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
-    )
-    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
-    .addColumn('project_id', 'uuid', (col) => col.notNull())
-    .addColumn('user_id', 'uuid', (col) => col.notNull())
-    .addColumn('role', 'varchar', (col) => col.notNull().defaultTo('Member'))
-    .addColumn('created_at', sql`timestamptz`, (col) =>
-      col.notNull().defaultTo(sql`now()`),
-    )
-    .addForeignKeyConstraint(
-      'fk_project_members_project',
-      ['project_id'],
-      'projects',
-      ['id'],
-      (cb) => cb.onDelete('cascade'),
-    )
-    .addForeignKeyConstraint(
-      'fk_project_members_user',
-      ['user_id'],
-      'users',
-      ['id'],
-      (cb) => cb.onDelete('cascade'),
-    )
-    .addForeignKeyConstraint(
-      'fk_project_members_tenant',
-      ['tenant_id'],
-      'organizations',
-      ['id'],
-      (cb) => cb.onDelete('cascade'),
-    )
-    .execute();
-
-  await sql`ALTER TABLE project_members ADD CONSTRAINT uq_project_members UNIQUE (project_id, user_id)`.execute(db);
-
-  // Dashboard Views
-  await db.schema
-    .createTable('dashboard_views')
-    .addColumn('id', 'uuid', (col) =>
-      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
-    )
-    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
-    .addColumn('user_id', 'uuid', (col) => col.notNull())
-    .addColumn('name', 'varchar', (col) => col.notNull())
-    .addColumn('config', 'jsonb')
-    .addColumn('created_at', sql`timestamptz`, (col) =>
-      col.notNull().defaultTo(sql`now()`),
-    )
-    .addColumn('updated_at', sql`timestamptz`, (col) =>
-      col.notNull().defaultTo(sql`now()`),
-    )
-    .addForeignKeyConstraint(
-      'fk_dashboard_views_tenant',
-      ['tenant_id'],
-      'organizations',
-      ['id'],
-      (cb) => cb.onDelete('cascade'),
-    )
-    .addForeignKeyConstraint(
-      'fk_dashboard_views_user',
-      ['user_id'],
-      'users',
-      ['id'],
-      (cb) => cb.onDelete('cascade'),
-    )
-    .execute();
-
   // Refresh Tokens
   await db.schema
     .createTable('refresh_tokens')
     .addColumn('id', 'uuid', (col) =>
       col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
     )
-    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('user_id', 'uuid', (col) => col.notNull())
     .addColumn('token', 'varchar', (col) => col.notNull())
     .addColumn('expires_at', sql`timestamptz`, (col) => col.notNull())
@@ -427,13 +317,6 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['id'],
       (cb) => cb.onDelete('cascade'),
     )
-    .addForeignKeyConstraint(
-      'fk_refresh_tokens_tenant',
-      ['tenant_id'],
-      'organizations',
-      ['id'],
-      (cb) => cb.onDelete('cascade'),
-    )
     .execute();
 
   // Indexes
@@ -444,9 +327,9 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_users_role')
+    .createIndex('idx_users_email')
     .on('users')
-    .column('role')
+    .column('email')
     .execute();
 
   await db.schema
@@ -456,15 +339,9 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_projects_tenant_status')
+    .createIndex('idx_projects_status')
     .on('projects')
-    .columns(['tenant_id', 'status'])
-    .execute();
-
-  await db.schema
-    .createIndex('idx_projects_created_by')
-    .on('projects')
-    .column('created_by')
+    .column('status')
     .execute();
 
   await db.schema
@@ -480,7 +357,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_assignee_id')
+    .createIndex('idx_tasks_assigned_to')
     .on('tasks')
     .column('assignee_id')
     .execute();
@@ -492,27 +369,9 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_users_email')
-    .on('users')
-    .column('email')
-    .execute();
-
-  await db.schema
-    .createIndex('idx_comments_tenant_id')
-    .on('comments')
-    .column('tenant_id')
-    .execute();
-
-  await db.schema
     .createIndex('idx_comments_task_id')
     .on('comments')
     .column('task_id')
-    .execute();
-
-  await db.schema
-    .createIndex('idx_attachments_tenant_id')
-    .on('attachments')
-    .column('tenant_id')
     .execute();
 
   await db.schema
@@ -522,21 +381,9 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_notifications_tenant_id')
-    .on('notifications')
-    .column('tenant_id')
-    .execute();
-
-  await db.schema
     .createIndex('idx_notifications_user_id')
     .on('notifications')
     .column('user_id')
-    .execute();
-
-  await db.schema
-    .createIndex('idx_notifications_tenant_user')
-    .on('notifications')
-    .columns(['tenant_id', 'user_id'])
     .execute();
 
   await db.schema
@@ -544,66 +391,15 @@ export async function up(db: Kysely<any>): Promise<void> {
     .on('audit_logs')
     .column('tenant_id')
     .execute();
-
-  await db.schema
-    .createIndex('idx_audit_logs_user_id')
-    .on('audit_logs')
-    .column('user_id')
-    .execute();
-
-  await db.schema
-    .createIndex('idx_project_members_tenant')
-    .on('project_members')
-    .column('tenant_id')
-    .execute();
-
-  await db.schema
-    .createIndex('idx_project_members_project')
-    .on('project_members')
-    .column('project_id')
-    .execute();
-
-  await db.schema
-    .createIndex('idx_dashboard_views_tenant_id')
-    .on('dashboard_views')
-    .column('tenant_id')
-    .execute();
-
-  await db.schema
-    .createIndex('idx_dashboard_views_user_id')
-    .on('dashboard_views')
-    .column('user_id')
-    .execute();
-
-  await db.schema
-    .createIndex('idx_task_assignments_tenant')
-    .on('task_assignments')
-    .column('tenant_id')
-    .execute();
-
-  await db.schema
-    .createIndex('idx_task_assignments_task')
-    .on('task_assignments')
-    .column('task_id')
-    .execute();
-
-  await db.schema
-    .createIndex('idx_task_assignments_user')
-    .on('task_assignments')
-    .column('user_id')
-    .execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
-  await db.schema.dropTable('dashboard_views').execute();
   await db.schema.dropTable('refresh_tokens').execute();
   await db.schema.dropTable('audit_logs').execute();
   await db.schema.dropTable('notifications').execute();
   await db.schema.dropTable('attachments').execute();
   await db.schema.dropTable('comments').execute();
-  await db.schema.dropTable('task_assignments').execute();
   await db.schema.dropTable('tasks').execute();
-  await db.schema.dropTable('project_members').execute();
   await db.schema.dropTable('projects').execute();
   await db.schema.dropTable('users').execute();
   await db.schema.dropTable('organizations').execute();
