@@ -149,7 +149,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['created_by'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('cascade'),
+      (cb) => cb.onDelete('restrict'),
     )
     .execute();
 
@@ -390,6 +390,12 @@ export async function up(db: Kysely<any>): Promise<void> {
     .createIndex('idx_users_tenant_id')
     .on('users')
     .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_users_role')
+    .on('users')
+    .column('role')
     .execute();
 
   await db.schema

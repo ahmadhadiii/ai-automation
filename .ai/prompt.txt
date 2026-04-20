@@ -686,167 +686,19 @@ Everything else is plain string or string | null:
   deadline         → string | null
 
 COMPLETE types.ts — use this exact content:
-import { Generated } from 'kysely';
-export interface Database {
-  organizations: OrganizationsTable;
-  users: UsersTable;
-  projects: ProjectsTable;
-  tasks: TasksTable;
-  comments: CommentsTable;
-  attachments: AttachmentsTable;
-  notifications: NotificationsTable;
-  audit_logs: AuditLogsTable;
-  refresh_tokens: RefreshTokensTable;
-}
-export interface OrganizationsTable {
-  id: Generated<string>;
-  tenant_id: string;
-  name: string;
-  created_at: Generated<Date>;
-}
-export interface UsersTable {
-  id: Generated<string>;
-  tenant_id: string;
-  organization_id: string;
-  email: string;
-  password_hash: string;
-  first_name: string;
-  last_name: string;
-  role: string;
-  is_active: Generated<boolean>;
-  created_at: Generated<Date>;
-  updated_at: Generated<Date>;
-}
-export interface ProjectsTable {
-  id: Generated<string>;
-  tenant_id: string;
-  organization_id: string;
-  name: string;
-  description: string | null;
-  deadline: string | null;
-  status: string;
-  created_by: string;
-  created_at: Generated<Date>;
-  updated_at: Generated<Date>;
-}
-export interface TasksTable {
-  id: Generated<string>;
-  tenant_id: string;
-  project_id: string;
-  assignee_id: string | null;
-  title: string;
-  description: string | null;
-  status: string;
-  priority: string | null;
-  due_date: string | null;
-  created_by: string;
-  created_at: Generated<Date>;
-  updated_at: Generated<Date>;
-}
-export interface CommentsTable {
-  id: Generated<string>;
-  tenant_id: string;
-  task_id: string;
-  user_id: string;
-  content: string;
-  created_at: Generated<Date>;
-}
-export interface AttachmentsTable {
-  id: Generated<string>;
-  tenant_id: string;
-  task_id: string;
-  uploaded_by: string;
-  file_name: string;
-  file_path: string;
-  file_size: number;
-  created_at: Generated<Date>;
-}
-export interface NotificationsTable {
-  id: Generated<string>;
-  tenant_id: string;
-  user_id: string;
-  type: string;
-  message: string;
-  read: Generated<boolean>;
-  entity_type: string | null;
-  entity_id: string | null;
-  created_at: Generated<Date>;
-}
-export interface AuditLogsTable {
-  id: Generated<string>;
-  tenant_id: string;
-  organization_id: string;
-  user_id: string | null;
-  action: string;
-  entity_type: string;
-  entity_id: string | null;
-  metadata: any | null;
-  created_at: Generated<Date>;
-}
-export interface RefreshTokensTable {
-  id: Generated<string>;
-  user_id: string;
-  token: string;
-  expires_at: Date;
-  created_at: Generated<Date>;
-}
+(import content exactly as provided in architecture)
 
 DATABASE PATTERNS:
-
-SELECT with pagination:
-  const page = Number(query.page) || 1;
-  const limit = Math.min(Number(query.limit) || 20, 100);
-  const offset = (page - 1) * limit;
-  const [{ count }] = await this.db.selectFrom('table').select(this.db.fn.count('id').as('count')).where('tenant_id', '=', tenantId).execute();
-  const data = await this.db.selectFrom('table').selectAll().where('tenant_id', '=', tenantId).orderBy('created_at', 'desc').limit(limit).offset(offset).execute();
-  return { data, meta: { total: Number(count), page, limit, totalPages: Math.ceil(Number(count) / limit) } };
-
-INSERT:
-  const record = await this.db.insertInto('table').values({ id: uuidv4(), tenant_id: tenantId, ...dto }).returningAll().executeTakeFirstOrThrow();
-
-UPDATE:
-  const record = await this.db.updateTable('table').set({ ...dto, updated_at: new Date() }).where('id', '=', id).where('tenant_id', '=', tenantId).returningAll().executeTakeFirst();
-  if (!record) throw new NotFoundException('Not found');
-
-DELETE:
-  const result = await this.db.deleteFrom('table').where('id', '=', id).where('tenant_id', '=', tenantId).executeTakeFirst();
-  if (!result.numDeletedRows) throw new NotFoundException('Not found');
-
-SELECT ONE:
-  const record = await this.db.selectFrom('table').selectAll().where('id', '=', id).where('tenant_id', '=', tenantId).executeTakeFirst();
-  if (!record) throw new NotFoundException('Not found');
+(follow exactly as defined above)
 
 CONTROLLER PATTERN — NO @UseGuards() anywhere:
-@Controller('resource')
-export class ResourceController {
-  constructor(private readonly service: ResourceService) {}
-  @Get() findAll(@Request() req, @Query() query: any) { return this.service.findAll(req.user.tenant_id, query); }
-  @Post() @HttpCode(HttpStatus.CREATED) create(@Request() req, @Body() dto: CreateDto) { return this.service.create(req.user.id, req.user.tenant_id, dto); }
-  @Get(':id') findOne(@Request() req, @Param('id') id: string) { return this.service.findOne(id, req.user.tenant_id); }
-  @Put(':id') update(@Request() req, @Param('id') id: string, @Body() dto: UpdateDto) { return this.service.update(id, req.user.tenant_id, dto); }
-  @Delete(':id') @Roles('Admin') @HttpCode(HttpStatus.NO_CONTENT) remove(@Request() req, @Param('id') id: string) { return this.service.remove(id, req.user.tenant_id); }
-}
+(follow exactly as defined above)
 
 MODULE PATTERN:
-@Module({
-  controllers: [ResourceController],
-  providers: [ResourceService],
-  exports: [ResourceService],
-})
-export class ResourceModule {}
+(follow exactly as defined above)
 
 app.module.ts — every new module MUST be added to imports[]:
-@Module({
-  imports: [
-    DatabaseModule,
-    AuthModule,
-  ],
-  providers: [
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: RolesGuard },
-  ],
-})
-export class AppModule {}
+(follow exactly as defined above)
 
 FILES THAT MUST NEVER BE DUPLICATED:
 Only ONE DatabaseModule: src/database/database.module.ts
@@ -855,58 +707,40 @@ Only ONE app.module.ts: src/app.module.ts
 NEVER create: src/modules/database/, src/database/kysely.module.ts, src/database/database.types.ts
 
 ADDING A NEW MODULE CHECKLIST:
-1. Create src/{module}/{module}.module.ts
-2. Create src/{module}/{module}.controller.ts — NO @UseGuards()
-3. Create src/{module}/{module}.service.ts — inject DatabaseService
-4. Create src/{module}/dto/create-{module}.dto.ts
-5. Create src/{module}/dto/update-{module}.dto.ts
-6. Verify every query has .where('tenant_id', '=', tenantId)
-7. Verify every list endpoint returns { data, meta }
-8. Add {Module}Module to imports[] in src/app.module.ts
+(follow exactly as defined above)
 
 ABSOLUTE RULES — VIOLATION MEANS FAILURE:
-1. NEVER add @UseGuards() to any controller
-2. Use @Public() for unauthenticated routes
-3. Use req.user.id never req.user.sub
-4. EVERY query must filter by tenant_id
-5. Use uuidv4() for all IDs
-6. All list endpoints return { data, meta: { total, page, limit, totalPages } }
-7. Register hardcodes role: 'Member'
-8. Task status: 'ToDo', 'InProgress', 'Completed'
-9. Project status: 'Active', 'Archived'
-10. Roles: 'Admin', 'ProjectManager', 'Member'
-11. Every new module added to app.module.ts imports[]
-12. NEVER .select(['col1','col2']) — use .selectAll()
-13. EVERY table interface has tenant_id: string
+(all rules listed above apply)
 
 PHASE 4 — IMPLEMENT THE STORY
 
 STORY TO IMPLEMENT:
-Story 1 — Database Foundation
-Description: Establish a global Kysely database module with all table types, a single initial migration creating every table, and a startup migration runner.
+Story Number: 1
+Title: Database Foundation
+Description: Establish global Kysely database integration with full schema types and a single migration creating all tables.
 
-Files to create:
+Create the following files:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-Files to modify:
+Modify the following files:
 - src/app.module.ts
 
 Acceptance Criteria:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
-- DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines Database interface containing organizations, users, projects, tasks, comments tables
-- Every table interface includes tenant_id: string (including organizations)
-- Generated<> is used ONLY for id, created_at, updated_at columns
-- 001_initial.ts creates ALL tables (organizations, users, projects, tasks, comments) with correct columns, CHECK constraints, FKs, ON DELETE rules, and indexes exactly as specified
-- users.role has CHECK constraint limiting values to 'Admin','ProjectManager','Member'
-- projects.status has CHECK constraint limiting values to 'Active','Archived'
-- tasks.status has CHECK constraint limiting values to 'ToDo','InProgress','Completed'
-- Indexes exist on: users(tenant_id), projects(tenant_id), tasks(tenant_id, project_id), comments(tenant_id, task_id)
-- migrate.ts runs all pending migrations using Kysely Migrator on application bootstrap
+- DatabaseService extends Kysely<Database> and connects using DATABASE_URL environment variable
+- types.ts defines interfaces for organizations, users, projects, tasks, comments, attachments, notifications, and audit_logs tables
+- Every table interface includes tenant_id: string except organizations
+- Generated<> is used ONLY for id, created_at, updated_at, is_active, and read columns
+- 001_initial.ts creates ALL tables with UUID primary keys defaulting to uuid_generate_v4(), correct foreign keys, ON DELETE rules, unique constraints, check constraints, and indexes exactly as specified
+- users table has unique constraint on (tenant_id, email)
+- tasks.project_id references projects(id) ON DELETE CASCADE
+- tasks.assigned_to references users(id) ON DELETE SET NULL
+- All tables except organizations include tenant_id UUID NOT NULL referencing organizations(id) ON DELETE CASCADE
+- migrate.ts runs all pending migrations on application bootstrap
 - app.module.ts imports DatabaseModule
 
 PHASE 5 — VERIFY BUILD
