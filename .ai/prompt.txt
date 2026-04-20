@@ -855,14 +855,13 @@ Only ONE app.module.ts: src/app.module.ts
 NEVER create: src/modules/database/, src/database/kysely.module.ts, src/database/database.types.ts
 
 ADDING A NEW MODULE CHECKLIST:
-1. Create src/{module}/{module}.module.ts
-2. Create src/{module}/{module}.controller.ts — NO @UseGuards()
-3. Create src/{module}/{module}.service.ts — inject DatabaseService
-4. Create src/{module}/dto/create-{module}.dto.ts
-5. Create src/{module}/dto/update-{module}.dto.ts
-6. Verify every query has .where('tenant_id', '=', tenantId)
-7. Verify every list endpoint returns { data, meta }
-8. Add {Module}Module to imports[] in src/app.module.ts
+1. Create src/database/database.module.ts
+2. Create src/database/database.service.ts
+3. Create src/database/types.ts
+4. Create src/database/migrations/001_initial.ts
+5. Create src/database/migrate.ts
+6. Verify migration creates all required tables with constraints and indexes
+7. Add DatabaseModule to imports[] in src/app.module.ts
 
 ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 1. NEVER add @UseGuards() to any controller
@@ -884,7 +883,7 @@ PHASE 4 — IMPLEMENT THE STORY
 STORY 1: Database Foundation
 
 Description:
-Establish global Kysely database integration with full schema types and a single migration creating all tables.
+Establish the global database layer with full schema types and a single migration that creates all tables.
 
 Files to create:
 - src/database/database.module.ts
@@ -898,15 +897,20 @@ Files to modify:
 
 Acceptance Criteria:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
-- DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines Database interface with tables: organizations, users, projects, tasks, comments, attachments, notifications, audit_logs, refresh_tokens — every table includes tenant_id: string
-- Generated<> is used ONLY for id, created_at, updated_at, is_active, and read columns
-- 001_initial.ts creates ALL tables with proper UUID PKs, CHECK constraints for role/status enums, foreign keys with ON DELETE rules, and indexes including comments.task_id, attachments.task_id, notifications.user_id, audit_logs.user_id
-- All tables except organizations include tenant_id UUID NOT NULL referencing organizations(id) ON DELETE CASCADE
-- migrate.ts runs all pending migrations on application bootstrap
+- DatabaseService extends Kysely<Database> and connects using DATABASE_URL from process.env
+- types.ts defines Database interface with tables: organizations, users, projects, tasks, comments
+- Every table interface includes tenant_id: string
+- Generated<> is used ONLY on id, created_at, updated_at, and is_active columns
+- users.role is typed as 'Admin' | 'ProjectManager' | 'Member'
+- projects.status is typed as 'Active' | 'Archived'
+- tasks.status is typed as 'ToDo' | 'InProgress' | 'Completed'
+- 001_initial.ts creates ALL tables with proper primary keys, foreign keys, ON DELETE rules, unique constraints, check constraints, and indexes
+- users table has UNIQUE (tenant_id, email) and indexes on tenant_id and role
+- projects table has UNIQUE (tenant_id, name) and indexes on tenant_id and status
+- tasks table has indexes on tenant_id, project_id, assignee_id, and status
+- comments table has indexes on tenant_id and task_id
+- migrate.ts executes all pending migrations using Kysely Migrator
 - app.module.ts imports DatabaseModule
-
-Implement everything exactly according to ARCHITECTURE rules and database patterns.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
