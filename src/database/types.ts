@@ -5,7 +5,7 @@ export interface Database {
   users: UsersTable;
   projects: ProjectsTable;
   tasks: TasksTable;
-  comments: CommentsTable;
+  task_comments: CommentsTable;
   attachments: AttachmentsTable;
   notifications: NotificationsTable;
   audit_logs: AuditLogsTable;

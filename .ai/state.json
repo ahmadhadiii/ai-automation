@@ -1,4 +1,7 @@
 {
-  "completed_stories": [],
-  "current_story": 1
+  "completed_stories": [
+    1
+  ],
+  "current_story": 1,
+  "last_completed_at": "2026-04-20T16:26:11.495Z"
 }
