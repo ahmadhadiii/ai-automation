@@ -327,6 +327,13 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['id'],
       (cb) => cb.onDelete('cascade'),
     )
+    .addForeignKeyConstraint(
+      'fk_project_members_tenant',
+      ['tenant_id'],
+      'organizations',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
     .execute();
 
   await sql`ALTER TABLE project_members ADD CONSTRAINT uq_project_members UNIQUE (project_id, user_id)`.execute(db);
@@ -383,6 +390,13 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['id'],
       (cb) => cb.onDelete('cascade'),
     )
+    .addForeignKeyConstraint(
+      'fk_refresh_tokens_tenant',
+      ['tenant_id'],
+      'organizations',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
     .execute();
 
   // Indexes
@@ -408,6 +422,12 @@ export async function up(db: Kysely<any>): Promise<void> {
     .createIndex('idx_projects_tenant_status')
     .on('projects')
     .columns(['tenant_id', 'status'])
+    .execute();
+
+  await db.schema
+    .createIndex('idx_projects_created_by')
+    .on('projects')
+    .column('created_by')
     .execute();
 
   await db.schema
@@ -486,6 +506,12 @@ export async function up(db: Kysely<any>): Promise<void> {
     .createIndex('idx_audit_logs_tenant_id')
     .on('audit_logs')
     .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_audit_logs_user_id')
+    .on('audit_logs')
+    .column('user_id')
     .execute();
 
   await db.schema
