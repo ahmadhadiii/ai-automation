@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 
-async function main() {
+export async function runMigrations() {
   const db = new Kysely<any>({
     dialect: new PostgresDialect({
       pool: new Pool({
@@ -34,11 +34,15 @@ async function main() {
   if (error) {
     console.error('Failed to migrate');
     console.error(error);
-    process.exit(1);
+    await db.destroy();
+    throw error;
   }
 
   await db.destroy();
-  process.exit(0);
 }
 
-main();
+if (require.main === module) {
+  runMigrations()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}

@@ -646,7 +646,6 @@ PHASE 3 — ARCHITECTURE RULES (follow exactly)
 GLOBAL GUARDS:
 Guards are registered globally via APP_GUARD in app.module.ts.
 NEVER add @UseGuards() to any controller or method — not even once.
-Adding @UseGuards() on a controller causes double-guard execution and auth bugs.
 
 AUTHENTICATION:
 JWT Payload into token: { sub: userId, email, role, tenant_id }
@@ -881,33 +880,37 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 
 PHASE 4 — IMPLEMENT THE STORY
 
-STORY 1: Database Foundation
+STORY NUMBER: 1
+TITLE: Database Foundation
 
-Description:
-Establish a global Kysely-based database layer with complete schema types and a single migration creating all tables.
+DESCRIPTION:
+Establish the global DatabaseModule with Kysely integration, all table types, and a single initial migration creating the complete schema.
 
-Files to create:
+FILES TO CREATE:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-Files to modify:
+FILES TO MODIFY:
 - src/app.module.ts
 
-Acceptance criteria:
+ACCEPTANCE CRITERIA:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines Database interface including tables: organizations, users, projects, tasks — every table except organizations includes tenant_id: string
-- Generated<> is used ONLY on: id, created_at, updated_at, is_active columns
-- users.role is typed as 'Admin' | 'ProjectManager' | 'Member'
-- projects.status is typed as 'Active' | 'Archived'
-- tasks.status is typed as 'ToDo' | 'InProgress' | 'Completed'
-- 001_initial.ts creates organizations, users, projects, tasks tables with all constraints, checks, foreign keys, ON DELETE rules, and indexes exactly as defined in the PRD in a single migration file
-- All foreign keys enforce tenant isolation via tenant_id references
-- Indexes created: idx_users_tenant, idx_users_email, idx_projects_tenant, idx_tasks_tenant, idx_tasks_project, idx_tasks_assignee
-- migrate.ts executes all pending migrations using Kysely Migrator
+- types.ts defines Database interface with tables: organizations, users, projects, tasks, comments, attachments, notifications, audit_logs
+- All tables except organizations include tenant_id: string in types.ts
+- Generated<> is used ONLY for id, created_at, updated_at, is_active, read columns
+- 001_initial.ts creates organizations table without tenant_id column
+- 001_initial.ts creates users table with tenant_id FK to organizations(id) ON DELETE CASCADE, UNIQUE(tenant_id,email), and index on tenant_id
+- 001_initial.ts creates projects table with tenant_id FK, status CHECK ('Active','Archived'), indexes on tenant_id and status
+- 001_initial.ts creates tasks table with tenant_id FK, project_id FK, assigned_to FK, status CHECK ('ToDo','InProgress','Completed'), and indexes on tenant_id, project_id, assigned_to
+- 001_initial.ts creates comments table with tenant_id FK, task_id FK ON DELETE CASCADE, user_id FK ON DELETE CASCADE, and index on tenant_id
+- 001_initial.ts creates attachments table with tenant_id FK, task_id FK ON DELETE CASCADE, uploaded_by FK to users(id) ON DELETE CASCADE, and index on tenant_id
+- 001_initial.ts creates notifications table with tenant_id FK, user_id FK ON DELETE CASCADE, read BOOLEAN DEFAULT false, and index on tenant_id and user_id
+- 001_initial.ts creates audit_logs table with tenant_id FK, user_id FK NULL ON DELETE SET NULL, action VARCHAR(100) NOT NULL, entity VARCHAR(100) NOT NULL, entity_id UUID NOT NULL, metadata JSONB NULL, and index on tenant_id
+- migrate.ts runs all pending migrations on application bootstrap
 - app.module.ts imports DatabaseModule
 
 PHASE 5 — VERIFY BUILD
@@ -922,12 +925,12 @@ Run in exact order:
   git push origin HEAD
 
 After push succeeds make this HTTP POST request to trigger the next story:
-  POST http://localhost:5678/webhook/ai automation
+  POST http://localhost:5678/webhook/ai%20automation
   Content-Type: application/json
   Body:
   {
     "project": "[object Object]",
-    "webhookUrl": "http://localhost:5678/webhook/ai automation",
+    "webhookUrl": "http://localhost:5678/webhook/ai%20automation",
     "state": {
       "completed_stories": [1],
       "current_story": null
