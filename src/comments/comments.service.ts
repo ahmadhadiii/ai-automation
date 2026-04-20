@@ -21,7 +21,7 @@ export class CommentsService {
 
     const id = uuidv4();
     return this.db
-      .insertInto('task_comments')
+      .insertInto('comments')
       .values({
         id,
         task_id: dto.task_id,
@@ -35,7 +35,7 @@ export class CommentsService {
 
   async findByTask(taskId: string, tenantId: string) {
     return this.db
-      .selectFrom('task_comments')
+      .selectFrom('comments')
       .selectAll()
       .where('task_id', '=', taskId)
       .where('tenant_id', '=', tenantId)
@@ -45,7 +45,7 @@ export class CommentsService {
 
   async findOne(id: string, tenantId: string) {
     const comment = await this.db
-      .selectFrom('task_comments')
+      .selectFrom('comments')
       .selectAll()
       .where('id', '=', id)
       .where('tenant_id', '=', tenantId)
@@ -60,7 +60,7 @@ export class CommentsService {
 
   async remove(id: string, userId: string, tenantId: string) {
     const comment = await this.db
-      .selectFrom('task_comments')
+      .selectFrom('comments')
       .selectAll()
       .where('id', '=', id)
       .where('tenant_id', '=', tenantId)
@@ -75,7 +75,7 @@ export class CommentsService {
     }
 
     await this.db
-      .deleteFrom('task_comments')
+      .deleteFrom('comments')
       .where('id', '=', id)
       .where('tenant_id', '=', tenantId)
       .execute();

@@ -154,7 +154,7 @@ export interface Database {
   users: UsersTable;
   projects: ProjectsTable;
   tasks: TasksTable;
-  comments: CommentsTable;
+  task_comments: CommentsTable;
   attachments: AttachmentsTable;
   notifications: NotificationsTable;
   audit_logs: AuditLogsTable;
@@ -825,33 +825,35 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 13. EVERY table interface has tenant_id: string
 
 PHASE 4 — IMPLEMENT THE STORY
-Read the selected story carefully.
-Implement every file in files_to_create.
-Modify every file in files_to_modify.
-Meet every acceptance criterion before proceeding.
 
 STORY TO IMPLEMENT:
-Story Number: 1
-Title: Database Foundation
-Description: Establish global Kysely database integration with all tables, types, and a single initial migration.
-Files to create:
+Story 1 — Database Foundation
+Description:
+Establish the global Kysely database connection, define all table types, and create the complete initial PostgreSQL schema with migrations.
+
+FILES TO CREATE:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
-Files to modify:
+
+FILES TO MODIFY:
 - src/app.module.ts
-Acceptance Criteria:
+
+ACCEPTANCE CRITERIA:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines Database interface including tables: organizations, users, projects, tasks, task_comments — every table includes tenant_id: string except organizations
-- Generated<> is used ONLY on id, created_at, updated_at, is_active columns
-- 001_initial.ts creates ALL tables with correct columns, CHECK constraints, foreign keys with ON DELETE CASCADE, and indexes exactly as specified in requirements in a single migration
-- Role CHECK constraint matches exactly: ('Admin','ProjectManager','Member')
-- Project status CHECK constraint matches exactly: ('Active','Archived')
-- Task status CHECK constraint matches exactly: ('ToDo','InProgress','Completed')
-- All foreign keys enforce tenant isolation via tenant_id columns
+- types.ts defines interfaces for organizations, users, projects, tasks, comments, attachments, notifications, and audit_logs tables
+- All tables except organizations include tenant_id: string in types.ts
+- Generated<> is used ONLY for id, created_at, updated_at, is_active, and read columns
+- organizations table does NOT include tenant_id column in database schema (but interface must match architecture above)
+- 001_initial.ts creates organizations, users, projects, tasks, comments, attachments, notifications, and audit_logs tables in a single migration file
+- users.role has CHECK constraint for ('Admin','ProjectManager','Member')
+- projects.status has CHECK constraint for ('Active','Archived') with default 'Active'
+- tasks.status has CHECK constraint for ('ToDo','InProgress','Completed') with default 'ToDo'
+- All foreign keys use ON DELETE CASCADE
+- Indexes exist on every tenant_id column and on tasks.project_id and tasks.assignee_id
 - migrate.ts runs all pending migrations on application bootstrap
 - app.module.ts imports DatabaseModule
 

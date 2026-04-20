@@ -154,9 +154,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 
   await sql`ALTER TABLE tasks ADD CONSTRAINT chk_tasks_status CHECK (status IN ('ToDo', 'InProgress', 'Completed'))`.execute(db);
 
-  // Task Comments
+  // Comments
   await db.schema
-    .createTable('task_comments')
+    .createTable('comments')
     .addColumn('id', 'uuid', (col) =>
       col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
     )
@@ -168,21 +168,21 @@ export async function up(db: Kysely<any>): Promise<void> {
       col.notNull().defaultTo(sql`now()`),
     )
     .addForeignKeyConstraint(
-      'fk_task_comments_task',
+      'fk_comments_task',
       ['task_id'],
       'tasks',
       ['id'],
       (cb) => cb.onDelete('cascade'),
     )
     .addForeignKeyConstraint(
-      'fk_task_comments_user',
+      'fk_comments_user',
       ['user_id'],
       'users',
       ['id'],
       (cb) => cb.onDelete('cascade'),
     )
     .addForeignKeyConstraint(
-      'fk_task_comments_tenant',
+      'fk_comments_tenant',
       ['tenant_id'],
       'organizations',
       ['id'],
@@ -305,7 +305,6 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('id', 'uuid', (col) =>
       col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
     )
-    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('user_id', 'uuid', (col) => col.notNull())
     .addColumn('token', 'varchar', (col) => col.notNull())
     .addColumn('expires_at', sql`timestamptz`, (col) => col.notNull())
@@ -316,13 +315,6 @@ export async function up(db: Kysely<any>): Promise<void> {
       'fk_refresh_tokens_user',
       ['user_id'],
       'users',
-      ['id'],
-      (cb) => cb.onDelete('cascade'),
-    )
-    .addForeignKeyConstraint(
-      'fk_refresh_tokens_tenant',
-      ['tenant_id'],
-      'organizations',
       ['id'],
       (cb) => cb.onDelete('cascade'),
     )
@@ -378,15 +370,21 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_task_comments_tenant_id')
-    .on('task_comments')
+    .createIndex('idx_comments_tenant_id')
+    .on('comments')
     .column('tenant_id')
     .execute();
 
   await db.schema
-    .createIndex('idx_task_comments_task_id')
-    .on('task_comments')
+    .createIndex('idx_comments_task_id')
+    .on('comments')
     .column('task_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_attachments_tenant_id')
+    .on('attachments')
+    .column('tenant_id')
     .execute();
 
   await db.schema
@@ -419,7 +417,7 @@ export async function down(db: Kysely<any>): Promise<void> {
   await db.schema.dropTable('audit_logs').execute();
   await db.schema.dropTable('notifications').execute();
   await db.schema.dropTable('attachments').execute();
-  await db.schema.dropTable('task_comments').execute();
+  await db.schema.dropTable('comments').execute();
   await db.schema.dropTable('tasks').execute();
   await db.schema.dropTable('projects').execute();
   await db.schema.dropTable('users').execute();

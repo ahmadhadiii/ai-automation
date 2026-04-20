@@ -5,7 +5,7 @@ export interface Database {
   users: UsersTable;
   projects: ProjectsTable;
   tasks: TasksTable;
-  task_comments: CommentsTable;
+  comments: CommentsTable;
   attachments: AttachmentsTable;
   notifications: NotificationsTable;
   audit_logs: AuditLogsTable;
@@ -107,7 +107,6 @@ export interface AuditLogsTable {
 
 export interface RefreshTokensTable {
   id: Generated<string>;
-  tenant_id: string;
   user_id: string;
   token: string;
   expires_at: Date;
