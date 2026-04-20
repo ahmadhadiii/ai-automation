@@ -883,32 +883,31 @@ PHASE 4 — IMPLEMENT THE STORY
 
 STORY 1: Database Foundation
 
-DESCRIPTION:
-Establish the global Kysely database layer with full schema types and a single initial migration that creates all tables with constraints and indexes.
+Description:
+Establish a global Kysely-based database layer with complete schema types and a single migration creating all tables.
 
-FILES TO CREATE:
+Files to create:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-FILES TO MODIFY:
+Files to modify:
 - src/app.module.ts
 
-ACCEPTANCE CRITERIA:
+Acceptance criteria:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
-- DatabaseService extends Kysely<Database> and connects using DATABASE_URL from process.env
-- types.ts defines Database interface including organizations, users, projects, tasks, comments tables
-- Every table interface in types.ts includes tenant_id: string
-- Generated<> is used ONLY on id, created_at, updated_at, is_active columns
-- 001_initial.ts creates organizations, users, projects, tasks, comments tables in a single migration file
-- users table has UNIQUE (tenant_id, email) constraint and role CHECK constraint for ('Admin','ProjectManager','Member')
-- projects table has status CHECK constraint for ('Active','Archived')
-- tasks table has status CHECK constraint for ('ToDo','InProgress','Completed')
-- All foreign keys use ON DELETE CASCADE except tasks.assignee_id and comments.user_id which use ON DELETE SET NULL
-- Indexes created: idx_users_tenant, idx_users_email, idx_projects_tenant, idx_tasks_tenant, idx_tasks_project, idx_comments_task
-- migrate.ts executes all pending migrations on application bootstrap
+- DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
+- types.ts defines Database interface including tables: organizations, users, projects, tasks — every table except organizations includes tenant_id: string
+- Generated<> is used ONLY on: id, created_at, updated_at, is_active columns
+- users.role is typed as 'Admin' | 'ProjectManager' | 'Member'
+- projects.status is typed as 'Active' | 'Archived'
+- tasks.status is typed as 'ToDo' | 'InProgress' | 'Completed'
+- 001_initial.ts creates organizations, users, projects, tasks tables with all constraints, checks, foreign keys, ON DELETE rules, and indexes exactly as defined in the PRD in a single migration file
+- All foreign keys enforce tenant isolation via tenant_id references
+- Indexes created: idx_users_tenant, idx_users_email, idx_projects_tenant, idx_tasks_tenant, idx_tasks_project, idx_tasks_assignee
+- migrate.ts executes all pending migrations using Kysely Migrator
 - app.module.ts imports DatabaseModule
 
 PHASE 5 — VERIFY BUILD
