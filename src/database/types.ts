@@ -10,6 +10,8 @@ export interface Database {
   notifications: NotificationsTable;
   audit_logs: AuditLogsTable;
   refresh_tokens: RefreshTokensTable;
+  project_members: ProjectMembersTable;
+  dashboard_views: DashboardViewsTable;
 }
 
 export interface OrganizationsTable {
@@ -112,4 +114,23 @@ export interface RefreshTokensTable {
   token: string;
   expires_at: Date;
   created_at: Generated<Date>;
+}
+
+export interface ProjectMembersTable {
+  id: Generated<string>;
+  tenant_id: string;
+  project_id: string;
+  user_id: string;
+  role: string;
+  created_at: Generated<Date>;
+}
+
+export interface DashboardViewsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  user_id: string;
+  name: string;
+  config: any | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
 }

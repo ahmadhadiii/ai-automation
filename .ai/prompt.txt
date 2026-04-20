@@ -156,6 +156,8 @@ export interface Database {
   notifications: NotificationsTable;
   audit_logs: AuditLogsTable;
   refresh_tokens: RefreshTokensTable;
+  project_members: ProjectMembersTable;
+  dashboard_views: DashboardViewsTable;
 }
 
 export interface OrganizationsTable {
@@ -173,7 +175,7 @@ export interface UsersTable {
   password_hash: string;
   first_name: string;
   last_name: string;
-  role: string;
+  role: 'Admin' | 'ProjectManager' | 'Member';
   is_active: Generated<boolean>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -186,7 +188,7 @@ export interface ProjectsTable {
   name: string;
   description: string | null;
   deadline: string | null;
-  status: string;
+  status: 'Active' | 'Archived';
   created_by: string;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -199,7 +201,7 @@ export interface TasksTable {
   assignee_id: string | null;
   title: string;
   description: string | null;
-  status: string;
+  status: 'ToDo' | 'InProgress' | 'Completed';
   priority: string | null;
   due_date: string | null;
   created_by: string;
@@ -258,6 +260,25 @@ export interface RefreshTokensTable {
   token: string;
   expires_at: Date;
   created_at: Generated<Date>;
+}
+
+export interface ProjectMembersTable {
+  id: Generated<string>;
+  tenant_id: string;
+  project_id: string;
+  user_id: string;
+  role: string;
+  created_at: Generated<Date>;
+}
+
+export interface DashboardViewsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  user_id: string;
+  name: string;
+  config: any | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
 }
 
 
@@ -860,40 +881,35 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 
 PHASE 4 — IMPLEMENT THE STORY
 
-STORY TO IMPLEMENT:
-Story Number: 1
-Title: Database Foundation
-Description: Establishes the global database layer with Kysely, all table types, and a single migration creating the complete schema.
+STORY 1: Database Foundation
 
-Files to create:
+DESCRIPTION:
+Establish global Kysely database integration with all schema types and a single migration creating the entire multi-tenant schema.
+
+FILES TO CREATE:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-Files to modify:
+FILES TO MODIFY:
 - src/app.module.ts
 
-Acceptance Criteria:
+ACCEPTANCE CRITERIA:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines interfaces for organizations, users, projects, tasks, comments, attachments, notifications, and audit_logs tables
-- Every table interface includes tenant_id: string
-- Generated<> is used ONLY for id, created_at, updated_at, is_active, and read columns
-- 001_initial.ts creates uuid-ossp extension if not exists
-- 001_initial.ts creates organizations table with columns id, tenant_id, name UNIQUE, created_at, updated_at
-- 001_initial.ts creates users table with FK tenant_id → organizations(id) ON DELETE CASCADE and UNIQUE(email)
-- 001_initial.ts creates projects table with FK tenant_id → organizations(id) ON DELETE CASCADE and UNIQUE(tenant_id, name)
-- 001_initial.ts creates tasks table with FK tenant_id → organizations(id), FK project_id → projects(id), FK assigned_to → users(id) ON DELETE SET NULL
-- 001_initial.ts creates comments table with FK task_id → tasks(id) ON DELETE CASCADE and FK user_id → users(id)
-- 001_initial.ts creates attachments table with FK task_id → tasks(id) ON DELETE CASCADE
-- 001_initial.ts creates notifications table with read BOOLEAN DEFAULT false
-- 001_initial.ts creates audit_logs table with action VARCHAR(100) NOT NULL
-- All tables include created_at DEFAULT now() and updated_at DEFAULT now()
-- All status and role columns include CHECK constraints using exact strings defined in requirements
-- Indexes exist on all tenant_id columns and foreign key columns
-- migrate.ts executes all pending migrations on application startup
+- types.ts defines interfaces for organizations, users, projects, tasks, comments tables and exports a Database interface mapping all tables
+- Every table interface includes tenant_id: string except organizations which does not include tenant_id
+- Generated<> is used ONLY on id, created_at, updated_at, is_active columns
+- All nullable columns are typed as string | null
+- 001_initial.ts creates extensions if needed and creates ALL tables (organizations, users, projects, tasks, comments) in a single migration file
+- All foreign keys, ON DELETE rules, CHECK constraints, UNIQUE constraints, and indexes exactly match the PRD specification
+- Role CHECK constraint allows only 'Admin','ProjectManager','Member'
+- Project status CHECK constraint allows only 'Active','Archived'
+- Task status CHECK constraint allows only 'ToDo','InProgress','Completed'
+- Indexes created: idx_users_tenant_id, idx_users_email, idx_projects_tenant_id, idx_tasks_tenant_id, idx_tasks_project_id, idx_comments_task_id, idx_comments_tenant_id
+- migrate.ts runs all pending migrations on application bootstrap
 - app.module.ts imports DatabaseModule
 
 PHASE 5 — VERIFY BUILD

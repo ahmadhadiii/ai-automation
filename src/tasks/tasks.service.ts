@@ -71,6 +71,8 @@ export class TasksService {
     if (dto.assignee_id !== undefined) updateData.assignee_id = dto.assignee_id;
     if (dto.due_date !== undefined) updateData.due_date = dto.due_date;
 
+    updateData.updated_at = new Date();
+
     const task = await this.db
       .updateTable('tasks')
       .set(updateData)
