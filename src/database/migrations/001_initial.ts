@@ -343,6 +343,12 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await sql`CREATE INDEX idx_audit_logs_tenant_created ON audit_logs (tenant_id, created_at DESC)`.execute(db);
+
+  await db.schema
+    .createIndex('idx_refresh_tokens_user_id')
+    .on('refresh_tokens')
+    .column('user_id')
+    .execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
