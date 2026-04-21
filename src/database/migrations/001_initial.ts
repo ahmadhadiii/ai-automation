@@ -95,7 +95,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['created_by'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('restrict'),
+      (cb) => cb.onDelete('cascade'),
     )
     .addUniqueConstraint('uq_projects_tenant_name', ['tenant_id', 'name'])
     .execute();
@@ -149,7 +149,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['created_by'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('restrict'),
+      (cb) => cb.onDelete('cascade'),
     )
     .execute();
 
@@ -296,7 +296,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['user_id'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('set null'),
+      (cb) => cb.onDelete('cascade'),
     )
     .execute();
 
