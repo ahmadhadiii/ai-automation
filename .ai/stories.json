@@ -2,7 +2,7 @@
   {
     "story_number": 1,
     "title": "Database Foundation",
-    "description": "Establish the global Kysely database connection, define all table types, and create the complete initial PostgreSQL schema with migrations.",
+    "description": "Establish the global Kysely database module with full schema types, a single initial migration creating all tables, and automatic migration runner.",
     "files_to_create": [
       "src/database/database.module.ts",
       "src/database/database.service.ts",
@@ -16,25 +16,26 @@
     "acceptance_criteria": [
       "DatabaseModule is decorated with @Global() and exports DatabaseService",
       "DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL",
-      "types.ts defines interfaces for organizations, users, projects, tasks, comments, attachments, notifications, and audit_logs tables",
-      "All tables except organizations include tenant_id: string in types.ts",
-      "Generated<> is used ONLY for id, created_at, updated_at, is_active, and read columns",
-      "organizations table does NOT include tenant_id column",
-      "001_initial.ts creates organizations, users, projects, tasks, comments, attachments, notifications, and audit_logs tables in a single migration file",
-      "users.role has CHECK constraint for ('Admin','ProjectManager','Member')",
-      "projects.status has CHECK constraint for ('Active','Archived') with default 'Active'",
-      "tasks.status has CHECK constraint for ('ToDo','InProgress','Completed') with default 'ToDo'",
-      "All foreign keys use ON DELETE CASCADE",
-      "Indexes exist on every tenant_id column and on tasks.project_id and tasks.assignee_id",
-      "migrate.ts runs all pending migrations on application bootstrap",
+      "types.ts defines interfaces for organizations, users, projects, and tasks tables and exports Database interface",
+      "Every table interface includes tenant_id: string except organizations which has no tenant_id",
+      "Generated<> is used ONLY on id, created_at, updated_at, is_active columns",
+      "users.role type is 'Admin' | 'ProjectManager' | 'Member'",
+      "projects.status type is 'Active' | 'Archived'",
+      "tasks.status type is 'ToDo' | 'InProgress' | 'Completed'",
+      "001_initial.ts creates organizations, users, projects, tasks tables with all columns, constraints, foreign keys, checks, unique constraints, and indexes exactly as defined in requirements",
+      "users table has UNIQUE (tenant_id, email)",
+      "projects table has UNIQUE (tenant_id, name)",
+      "tasks.project_id references projects(id) ON DELETE CASCADE",
+      "users.tenant_id and projects.tenant_id and tasks.tenant_id reference organizations(id) ON DELETE CASCADE",
+      "migrate.ts runs all pending migrations using Kysely Migrator on application bootstrap",
       "app.module.ts imports DatabaseModule"
     ],
     "depends_on": []
   },
   {
     "story_number": 2,
-    "title": "Auth Module",
-    "description": "Implement JWT authentication, registration, login, refresh tokens, global guard, and role decorators.",
+    "title": "Authentication Module",
+    "description": "Implement JWT authentication with register, login, refresh token, global guard, and role-based decorators.",
     "files_to_create": [
       "src/auth/auth.module.ts",
       "src/auth/auth.controller.ts",
@@ -44,34 +45,39 @@
       "src/auth/dto/refresh-token.dto.ts",
       "src/auth/jwt.strategy.ts",
       "src/auth/jwt-auth.guard.ts",
-      "src/auth/roles.decorator.ts",
       "src/auth/roles.guard.ts",
-      "src/auth/public.decorator.ts"
+      "src/auth/decorators/public.decorator.ts",
+      "src/auth/decorators/roles.decorator.ts"
     ],
     "files_to_modify": [
       "src/app.module.ts"
     ],
     "acceptance_criteria": [
       "AuthController exposes POST /api/auth/register marked with @Public()",
-      "RegisterDto has email: @IsEmail() @MaxLength(255), password: @IsString() @MinLength(8) @MaxLength(100), first_name: @IsString() @MinLength(1) @MaxLength(100), last_name: same validation",
-      "POST /api/auth/register ignores any role in body and creates user with role 'Admin'",
-      "POST /api/auth/register creates a new organization and user in a single transaction",
-      "POST /api/auth/register returns { id, email, first_name, last_name, role: 'Admin', tenant_id }",
-      "AuthController exposes POST /api/auth/login marked with @Public()",
-      "POST /api/auth/login returns { access_token, refresh_token, user: { id, email, role, tenant_id } }",
-      "Passwords are hashed using bcrypt with 12 salt rounds",
+      "RegisterDto has email: @IsEmail(), password: @IsString() @MinLength(8), first_name: @IsString() @MinLength(1), last_name: @IsString() @MinLength(1)",
+      "POST /api/auth/register NEVER accepts role in body and role is hardcoded to 'Member'",
+      "POST /api/auth/register hashes password using bcrypt with 12 salt rounds",
+      "POST /api/auth/register returns 201 with { id, email, first_name, last_name, role, tenant_id }",
+      "POST /api/auth/login marked with @Public() returns { access_token, refresh_token, user: { id, email, role, tenant_id } }",
+      "Invalid login credentials throw UnauthorizedException",
       "JWT payload contains sub, email, role, tenant_id",
-      "Global JWT guard is registered using APP_GUARD",
-      "@Roles() decorator sets metadata and RolesGuard enforces exact role match",
+      "jwt.strategy validate() returns { id, email, role, tenant_id } assigned to req.user",
+      "JwtAuthGuard is registered globally using APP_GUARD in app.module.ts",
+      "RolesGuard is registered globally using APP_GUARD in app.module.ts",
+      "@Public() decorator bypasses global guard",
+      "@Roles('Admin') decorator enforces exact role match",
       "AuthController has NO @UseGuards() decorator",
-      "app.module.ts imports AuthModule"
+      "All database queries filter by tenant_id where applicable",
+      "AuthModule is added to app.module.ts imports"
     ],
-    "depends_on": [1]
+    "depends_on": [
+      1
+    ]
   },
   {
     "story_number": 3,
     "title": "Organizations Module",
-    "description": "Allow creation of a new organization with its first Admin user and return an access token.",
+    "description": "Implement organization creation endpoint that creates organization and first Admin user and returns JWT access token.",
     "files_to_create": [
       "src/organizations/organizations.module.ts",
       "src/organizations/organizations.controller.ts",
@@ -83,183 +89,184 @@
     ],
     "acceptance_criteria": [
       "OrganizationsController exposes POST /api/organizations marked with @Public()",
-      "CreateOrganizationDto has name: @IsString() @MinLength(1) @MaxLength(255), email: @IsEmail(), password: @MinLength(8), first_name and last_name required",
-      "POST /api/organizations creates organization and Admin user in single transaction",
-      "POST /api/organizations returns { access_token, user: { id, email, role: 'Admin', tenant_id } }",
-      "Email must be globally unique or throw ConflictException",
+      "CreateOrganizationDto has name: @IsString() @MinLength(1), email: @IsEmail(), password: @MinLength(8), first_name: @IsString(), last_name: @IsString()",
+      "POST /api/organizations creates new organization row",
+      "POST /api/organizations creates first user with role 'Admin' and tenant_id equal to organization id",
+      "Password hashed with bcrypt(12)",
+      "Returns 201 with { access_token, user: { id, email, role: 'Admin', tenant_id } }",
+      "Organization name must be unique else throw ConflictException",
+      "All inserts include tenant_id where applicable",
       "OrganizationsController has NO @UseGuards() decorator",
-      "app.module.ts imports OrganizationsModule"
+      "OrganizationsModule is added to app.module.ts imports"
     ],
-    "depends_on": [2]
+    "depends_on": [
+      1,
+      2
+    ]
   },
   {
     "story_number": 4,
     "title": "Users Module",
-    "description": "Implement tenant-isolated user management including listing users and updating roles.",
+    "description": "Provide tenant-scoped user listing and role management for Admin users.",
     "files_to_create": [
       "src/users/users.module.ts",
       "src/users/users.controller.ts",
       "src/users/users.service.ts",
-      "src/users/dto/update-role.dto.ts",
-      "src/users/dto/query-users.dto.ts"
+      "src/users/dto/update-user-role.dto.ts",
+      "src/users/dto/pagination.dto.ts"
     ],
     "files_to_modify": [
       "src/app.module.ts"
     ],
     "acceptance_criteria": [
-      "UsersController exposes GET /api/users with pagination query ?page=1&limit=20",
+      "UsersController exposes GET /api/users with pagination query params page and limit",
       "GET /api/users requires @Roles('Admin')",
-      "GET /api/users filters by tenant_id = req.user.tenant_id",
       "GET /api/users returns { data: User[], meta: { total, page, limit, totalPages } }",
-      "UsersController exposes PATCH /api/users/:id/role",
-      "PATCH /api/users/:id/role requires @Roles('Admin')",
-      "UpdateRoleDto has role: @IsIn(['Admin','ProjectManager','Member'])",
-      "Cannot change own role — throws ForbiddenException",
-      "Cannot demote last Admin in tenant — throws BadRequestException",
-      "Every update query includes .where('tenant_id','=',tenantId)",
+      "Each user object contains id, email, first_name, last_name, role, is_active, created_at",
+      "GET /api/users queries must include .where('tenant_id', '=', req.user.tenant_id)",
+      "Pagination defaults: page=1, limit=20, max limit=100",
+      "UsersController exposes PATCH /api/users/:id/role requiring @Roles('Admin')",
+      "UpdateUserRoleDto has role: @IsIn(['Admin','ProjectManager','Member'])",
+      "PATCH /api/users/:id/role throws ForbiddenException if id equals req.user.id",
+      "PATCH /api/users/:id/role ensures target user belongs to same tenant else NotFoundException",
       "UsersController has NO @UseGuards() decorator",
-      "app.module.ts imports UsersModule"
+      "UsersModule is added to app.module.ts imports"
     ],
-    "depends_on": [3]
+    "depends_on": [
+      1,
+      2,
+      3
+    ]
   },
   {
     "story_number": 5,
     "title": "Projects Module",
-    "description": "Implement project creation, listing, and updating with strict tenant and role enforcement.",
+    "description": "Enable tenant-scoped project creation, listing, updating, and deletion with role restrictions.",
     "files_to_create": [
       "src/projects/projects.module.ts",
       "src/projects/projects.controller.ts",
       "src/projects/projects.service.ts",
       "src/projects/dto/create-project.dto.ts",
       "src/projects/dto/update-project.dto.ts",
-      "src/projects/dto/query-projects.dto.ts"
+      "src/projects/dto/pagination.dto.ts"
     ],
     "files_to_modify": [
       "src/app.module.ts"
     ],
     "acceptance_criteria": [
       "ProjectsController exposes POST /api/projects requiring @Roles('Admin','ProjectManager')",
-      "CreateProjectDto has name: @IsString() @MaxLength(255), description: @IsOptional() @MaxLength(1000)",
-      "POST /api/projects sets status to 'Active' by default",
-      "POST /api/projects inserts tenant_id from req.user.tenant_id",
+      "CreateProjectDto has name: @IsString() @MinLength(1), description: @IsOptional() @IsString(), status: @IsIn(['Active','Archived'])",
+      "POST /api/projects enforces UNIQUE (tenant_id, name) else ConflictException",
+      "POST /api/projects inserts tenant_id from req.user.tenant_id and created_by from req.user.id",
       "ProjectsController exposes GET /api/projects with pagination",
-      "Members only see projects where they are assigned to at least one task",
-      "All queries filter by tenant_id",
+      "GET /api/projects for Admin and ProjectManager returns all tenant projects filtered by tenant_id",
+      "GET /api/projects for Member returns only projects where tasks assigned_to = req.user.id",
+      "GET /api/projects returns { data: Project[], meta: { total, page, limit, totalPages } }",
       "ProjectsController exposes PATCH /api/projects/:id requiring @Roles('Admin','ProjectManager')",
-      "UpdateProjectDto allows optional name, description, status: @IsIn(['Active','Archived'])",
+      "PATCH prevents modifying Archived project except status field",
+      "ProjectsController exposes DELETE /api/projects/:id requiring @Roles('Admin')",
+      "DELETE relies on ON DELETE CASCADE for tasks",
+      "All queries include .where('tenant_id', '=', req.user.tenant_id)",
       "ProjectsController has NO @UseGuards() decorator",
-      "app.module.ts imports ProjectsModule"
+      "ProjectsModule is added to app.module.ts imports"
     ],
-    "depends_on": [4]
+    "depends_on": [
+      4
+    ]
   },
   {
     "story_number": 6,
     "title": "Tasks Module",
-    "description": "Implement full task management with tenant isolation and ownership enforcement.",
+    "description": "Provide full task management with tenant isolation and role-based access control.",
     "files_to_create": [
       "src/tasks/tasks.module.ts",
       "src/tasks/tasks.controller.ts",
       "src/tasks/tasks.service.ts",
       "src/tasks/dto/create-task.dto.ts",
       "src/tasks/dto/update-task.dto.ts",
-      "src/tasks/dto/query-tasks.dto.ts"
+      "src/tasks/dto/pagination.dto.ts"
     ],
     "files_to_modify": [
       "src/app.module.ts"
     ],
     "acceptance_criteria": [
-      "TasksController exposes POST /api/projects/:projectId/tasks requiring @Roles('Admin','ProjectManager')",
-      "CreateTaskDto has title: @IsString() @MaxLength(255), description: @IsOptional() @MaxLength(1000), assignee_id: @IsUUID(), status: @IsOptional() @IsIn(['ToDo','InProgress','Completed'])",
-      "POST validates project and assignee belong to same tenant",
-      "Default task status is 'ToDo'",
+      "TasksController exposes POST /api/tasks requiring @Roles('Admin','ProjectManager')",
+      "CreateTaskDto has project_id: @IsUUID(), title: @IsString() @MinLength(1), description: @IsOptional() @IsString(), status: @IsIn(['ToDo','InProgress','Completed']), assigned_to: @IsOptional() @IsUUID()",
+      "POST /api/tasks verifies project exists with same tenant_id else NotFoundException",
+      "POST /api/tasks verifies assigned_to user belongs to same tenant if provided",
       "TasksController exposes GET /api/tasks with pagination",
-      "Member sees only tasks where assignee_id = req.user.id",
-      "All queries include .where('tenant_id','=',tenantId)",
+      "GET /api/tasks for Admin and ProjectManager returns all tenant tasks",
+      "GET /api/tasks for Member returns only tasks where assigned_to = req.user.id",
+      "GET /api/tasks returns { data: Task[], meta: { total, page, limit, totalPages } }",
       "TasksController exposes PATCH /api/tasks/:id",
-      "Admin and ProjectManager can update any task in tenant",
-      "Member can update only if task.assignee_id === req.user.id else throw ForbiddenException",
+      "PATCH allowed for Admin and ProjectManager always",
+      "PATCH allowed for Member only if task.assigned_to === req.user.id else ForbiddenException",
+      "TasksController exposes DELETE /api/tasks/:id requiring @Roles('Admin','ProjectManager')",
+      "All queries include .where('tenant_id', '=', req.user.tenant_id)",
       "TasksController has NO @UseGuards() decorator",
-      "app.module.ts imports TasksModule"
+      "TasksModule is added to app.module.ts imports"
     ],
-    "depends_on": [5]
+    "depends_on": [
+      5
+    ]
   },
   {
     "story_number": 7,
-    "title": "Comments and Attachments Module",
-    "description": "Enable task-level comments and file attachment metadata with strict ownership and tenant enforcement.",
+    "title": "Dashboard and Notifications Module",
+    "description": "Provide aggregated dashboard metrics and basic notification listing per tenant.",
     "files_to_create": [
-      "src/collaboration/collaboration.module.ts",
-      "src/collaboration/collaboration.controller.ts",
-      "src/collaboration/collaboration.service.ts",
-      "src/collaboration/dto/create-comment.dto.ts",
-      "src/collaboration/dto/create-attachment.dto.ts",
-      "src/collaboration/dto/query-comments.dto.ts"
+      "src/dashboard/dashboard.module.ts",
+      "src/dashboard/dashboard.controller.ts",
+      "src/dashboard/dashboard.service.ts",
+      "src/notifications/notifications.module.ts",
+      "src/notifications/notifications.controller.ts",
+      "src/notifications/notifications.service.ts",
+      "src/notifications/dto/pagination.dto.ts"
     ],
     "files_to_modify": [
       "src/app.module.ts"
     ],
     "acceptance_criteria": [
-      "CollaborationController exposes POST /api/tasks/:taskId/comments",
-      "CreateCommentDto has content: @IsString() @MinLength(1)",
-      "POST comment inserts tenant_id and user_id from req.user",
-      "DELETE /api/comments/:id allowed only if comment.user_id === req.user.id else throw ForbiddenException",
-      "CollaborationController exposes POST /api/tasks/:taskId/attachments",
-      "CreateAttachmentDto has file_name: @IsString(), file_url: @IsString()",
-      "All queries filter by tenant_id",
-      "List comments endpoint GET /api/tasks/:taskId/comments supports pagination and returns standard meta structure",
-      "CollaborationController has NO @UseGuards() decorator",
-      "app.module.ts imports CollaborationModule"
+      "DashboardController exposes GET /api/dashboard requiring authenticated user",
+      "GET /api/dashboard returns { total_projects, total_tasks, tasks_by_status: { ToDo, InProgress, Completed } } scoped to tenant_id",
+      "All dashboard queries include .where('tenant_id', '=', req.user.tenant_id)",
+      "NotificationsController exposes GET /api/notifications with pagination",
+      "GET /api/notifications returns { data: Notification[], meta: { total, page, limit, totalPages } }",
+      "Notifications are scoped by tenant_id and user_id = req.user.id",
+      "DashboardController and NotificationsController have NO @UseGuards() decorator",
+      "DashboardModule and NotificationsModule are added to app.module.ts imports"
     ],
-    "depends_on": [6]
+    "depends_on": [
+      6
+    ]
   },
   {
     "story_number": 8,
-    "title": "Dashboard and Notifications Module",
-    "description": "Provide dashboard summary statistics and in-app notification listing with read tracking.",
-    "files_to_create": [
-      "src/insights/insights.module.ts",
-      "src/insights/insights.controller.ts",
-      "src/insights/insights.service.ts",
-      "src/insights/dto/query-notifications.dto.ts"
-    ],
-    "files_to_modify": [
-      "src/app.module.ts"
-    ],
-    "acceptance_criteria": [
-      "InsightsController exposes GET /api/dashboard returning { total_projects, total_tasks, completed_tasks }",
-      "Dashboard metrics are filtered by tenant_id",
-      "Member dashboard counts only their assigned tasks",
-      "InsightsController exposes GET /api/notifications with pagination",
-      "GET /api/notifications returns { data: Notification[], meta: { total, page, limit, totalPages } }",
-      "PATCH /api/notifications/:id/read sets read = true only if notification.user_id = req.user.id",
-      "All queries filter by tenant_id",
-      "InsightsController has NO @UseGuards() decorator",
-      "app.module.ts imports InsightsModule"
-    ],
-    "depends_on": [7]
-  },
-  {
-    "story_number": 9,
     "title": "Audit Logs Module",
-    "description": "Implement immutable audit logging for all create, update, and delete actions across the system.",
+    "description": "Implement tenant-scoped audit logging of critical actions with Admin-only access.",
     "files_to_create": [
       "src/audit/audit.module.ts",
       "src/audit/audit.controller.ts",
       "src/audit/audit.service.ts",
-      "src/audit/dto/query-audit.dto.ts"
+      "src/audit/dto/pagination.dto.ts"
     ],
     "files_to_modify": [
-      "src/app.module.ts"
+      "src/app.module.ts",
+      "src/database/types.ts",
+      "src/database/migrations/001_initial.ts"
     ],
     "acceptance_criteria": [
-      "AuditService creates audit_logs record for every create, update, and delete operation with fields: id, tenant_id, user_id, action, entity, entity_id, created_at",
-      "AuditController exposes GET /api/audit-logs with pagination requiring @Roles('Admin')",
-      "GET /api/audit-logs filters strictly by tenant_id",
-      "GET /api/audit-logs returns { data: AuditLog[], meta: { total, page, limit, totalPages } }",
-      "Audit logs are immutable and no update or delete endpoint exists",
+      "Add audit_logs table definition to types.ts with id, tenant_id, user_id, action, entity, entity_id, created_at",
+      "Generated<> used only on id and created_at in audit_logs table type",
+      "001_initial.ts updated to create audit_logs table with FK to organizations(id) ON DELETE CASCADE",
+      "AuditController exposes GET /api/audit-logs requiring @Roles('Admin')",
+      "GET /api/audit-logs supports pagination and returns { data: AuditLog[], meta: { total, page, limit, totalPages } }",
+      "All queries include .where('tenant_id', '=', req.user.tenant_id)",
       "AuditController has NO @UseGuards() decorator",
-      "app.module.ts imports AuditModule"
+      "AuditModule is added to app.module.ts imports"
     ],
-    "depends_on": [8]
+    "depends_on": [
+      7
+    ]
   }
 ]

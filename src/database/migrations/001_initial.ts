@@ -24,7 +24,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     )
     .addColumn('tenant_id', 'uuid', (col) => col.notNull())
     .addColumn('organization_id', 'uuid', (col) => col.notNull())
-    .addColumn('email', 'varchar', (col) => col.notNull().unique())
+    .addColumn('email', 'varchar', (col) => col.notNull())
     .addColumn('password_hash', 'varchar', (col) => col.notNull())
     .addColumn('first_name', 'varchar', (col) => col.notNull())
     .addColumn('last_name', 'varchar', (col) => col.notNull())
@@ -38,6 +38,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('updated_at', sql`timestamptz`, (col) =>
       col.notNull().defaultTo(sql`now()`),
     )
+    .addUniqueConstraint('uq_users_tenant_email', ['tenant_id', 'email'])
     .addForeignKeyConstraint(
       'fk_users_tenant',
       ['tenant_id'],
