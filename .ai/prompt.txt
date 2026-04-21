@@ -590,6 +590,7 @@ PHASE 3 — ARCHITECTURE RULES (follow exactly)
 GLOBAL GUARDS:
 Guards are registered globally via APP_GUARD in app.module.ts.
 NEVER add @UseGuards() to any controller or method — not even once.
+Adding @UseGuards() on a controller causes double-guard execution and auth bugs.
 
 AUTHENTICATION:
 JWT Payload into token: { sub: userId, email, role, tenant_id }
@@ -735,7 +736,6 @@ export interface RefreshTokensTable {
 }
 
 DATABASE PATTERNS:
-
 SELECT with pagination:
   const page = Number(query.page) || 1;
   const limit = Math.min(Number(query.limit) || 20, 100);
@@ -824,39 +824,35 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 
 PHASE 4 — IMPLEMENT THE STORY
 
-STORY TO IMPLEMENT:
-Story Number: 1
-Title: Database Foundation
-Description: Establish the global Kysely database module with full schema types, a single initial migration creating all tables, and automatic migration runner.
+Story 1: Database Foundation
 
-FILES TO CREATE:
+Description:
+Establish the global Kysely database connection, define all table types, and create the complete initial PostgreSQL schema in a single migration.
+
+Files to create:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-FILES TO MODIFY:
+Files to modify:
 - src/app.module.ts
 
-ACCEPTANCE CRITERIA:
+Acceptance criteria:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts defines interfaces for organizations, users, projects, and tasks tables and exports Database interface
-- Every table interface includes tenant_id: string except organizations which has no tenant_id
-- Generated<> is used ONLY on id, created_at, updated_at, is_active columns
-- users.role type is 'Admin' | 'ProjectManager' | 'Member'
-- projects.status type is 'Active' | 'Archived'
-- tasks.status type is 'ToDo' | 'InProgress' | 'Completed'
-- 001_initial.ts creates organizations, users, projects, tasks tables with all columns, constraints, foreign keys, checks, unique constraints, and indexes exactly as defined in requirements
-- users table has UNIQUE (tenant_id, email)
-- projects table has UNIQUE (tenant_id, name)
-- tasks.project_id references projects(id) ON DELETE CASCADE
-- users.tenant_id and projects.tenant_id and tasks.tenant_id reference organizations(id) ON DELETE CASCADE
-- migrate.ts runs all pending migrations using Kysely Migrator on application bootstrap
+- types.ts defines Database interface including tables: organizations, users, projects, tasks — every table except organizations includes tenant_id: string (NOT Generated<string>)
+- Generated<> is used ONLY for: id, created_at, updated_at, is_active columns
+- users.role type is union 'Admin' | 'ProjectManager' | 'Member'
+- projects.status type is union 'Active' | 'Archived'
+- tasks.status type is union 'ToDo' | 'InProgress' | 'Completed'
+- 001_initial.ts creates organizations, users, projects, tasks tables with all columns, CHECK constraints, foreign keys, ON DELETE CASCADE rules, and required indexes exactly as defined in the specification
+- users.email has UNIQUE constraint and idx_users_tenant_id index exists
+- projects has idx_projects_tenant_id and idx_projects_status indexes
+- tasks has idx_tasks_tenant_id, idx_tasks_project_id, idx_tasks_assignee_id, idx_tasks_status indexes
+- migrate.ts runs all pending migrations programmatically using Kysely Migrator
 - app.module.ts imports DatabaseModule
-
-Implement every file listed and satisfy every acceptance criterion before proceeding.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
@@ -865,9 +861,9 @@ Do NOT proceed to Phase 6 with a broken build.
 
 PHASE 6 — COMMIT AND PUSH
 Run in exact order:
-  git add -A
-  git commit -m "feat: story-1 Database Foundation"
-  git push origin HEAD
+git add -A
+git commit -m "feat: story-1 Database Foundation"
+git push origin HEAD
 
 After push succeeds output exactly:
 === STORY 1 COMPLETE — NEXT STORY TRIGGERED ===
