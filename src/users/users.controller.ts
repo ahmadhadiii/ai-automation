@@ -1,4 +1,4 @@
-import { Controller, Get, Request } from '@nestjs/common';
+import { Controller, Get, Query, Request } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator';
 import { UsersService } from './users.service';
 
@@ -8,7 +8,7 @@ export class UsersController {
 
   @Get()
   @Roles('Admin')
-  findAll(@Request() req: any) {
-    return this.usersService.findAllByTenant(req.user.tenant_id);
+  findAll(@Request() req: any, @Query() query: any) {
+    return this.usersService.findAll(req.user.tenant_id, query);
   }
 }

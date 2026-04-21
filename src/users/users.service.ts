@@ -1,16 +1,55 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import { UserResponseDto } from './dto/user-response.dto';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly db: DatabaseService) {}
 
-  async findById(id: string) {
+  async findAll(tenantId: string, query: any) {
+    const page = Number(query.page) || 1;
+    const limit = Math.min(Number(query.limit) || 20, 100);
+    const offset = (page - 1) * limit;
+
+    const [{ count }] = await this.db
+      .selectFrom('users')
+      .select(this.db.fn.count('id').as('count'))
+      .where('tenant_id', '=', tenantId)
+      .execute();
+
+    const users = await this.db
+      .selectFrom('users')
+      .selectAll()
+      .where('tenant_id', '=', tenantId)
+      .orderBy('created_at', 'desc')
+      .limit(limit)
+      .offset(offset)
+      .execute();
+
+    const data = users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      role: user.role,
+    }));
+
+    return {
+      data,
+      meta: {
+        total: Number(count),
+        page,
+        limit,
+        totalPages: Math.ceil(Number(count) / limit),
+      },
+    };
+  }
+
+  async findById(id: string, tenantId: string) {
     const user = await this.db
       .selectFrom('users')
       .selectAll()
       .where('id', '=', id)
+      .where('tenant_id', '=', tenantId)
       .executeTakeFirst();
 
     if (!user) {
@@ -18,28 +57,5 @@ export class UsersService {
     }
 
     return user;
-  }
-
-  async findByTenant(tenantId: string) {
-    return this.db
-      .selectFrom('users')
-      .selectAll()
-      .where('tenant_id', '=', tenantId)
-      .execute();
-  }
-
-  async findAllByTenant(tenantId: string): Promise<UserResponseDto[]> {
-    const users = await this.db
-      .selectFrom('users')
-      .selectAll()
-      .where('tenant_id', '=', tenantId)
-      .execute();
-
-    return users.map((user) => ({
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      createdAt: new Date(user.created_at).toISOString(),
-    }));
   }
 }
