@@ -6,14 +6,39 @@ import { DatabaseService } from '../database/database.service';
 export class NotificationsService {
   constructor(private readonly db: DatabaseService) {}
 
-  async findByUser(userId: string, tenantId: string) {
-    return this.db
+  async findAll(tenantId: string, userId: string, query: any) {
+    const page = Number(query.page) || 1;
+    const limit = Math.min(Number(query.limit) || 20, 100);
+    const offset = (page - 1) * limit;
+
+    const [{ count }] = await this.db
+      .selectFrom('notifications')
+      .select(this.db.fn.countAll().as('count'))
+      .where('tenant_id', '=', tenantId)
+      .where('user_id', '=', userId)
+      .execute();
+
+    const total = Number(count);
+
+    const data = await this.db
       .selectFrom('notifications')
       .selectAll()
-      .where('user_id', '=', userId)
       .where('tenant_id', '=', tenantId)
+      .where('user_id', '=', userId)
       .orderBy('created_at', 'desc')
+      .limit(limit)
+      .offset(offset)
       .execute();
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async markAsRead(id: string, userId: string, tenantId: string) {

@@ -1,13 +1,13 @@
-import { Controller, Get, Patch, Param, Request } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Query, Request } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 
-@Controller('notifications')
+@Controller('api/notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
-  findAll(@Request() req: any) {
-    return this.notificationsService.findByUser(req.user.id, req.user.tenant_id);
+  findAll(@Request() req: any, @Query() query: any) {
+    return this.notificationsService.findAll(req.user.tenant_id, req.user.id, query);
   }
 
   @Patch(':id/read')

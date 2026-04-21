@@ -5,29 +5,47 @@ import { DatabaseService } from '../database/database.service';
 export class DashboardService {
   constructor(private readonly db: DatabaseService) {}
 
-  async getSummary(tenantId: string) {
-    const [projects, tasks, users] = await Promise.all([
-      this.db
-        .selectFrom('projects')
-        .select(this.db.fn.countAll().as('count'))
-        .where('tenant_id', '=', tenantId)
-        .executeTakeFirstOrThrow(),
-      this.db
-        .selectFrom('tasks')
-        .select(this.db.fn.countAll().as('count'))
-        .where('tenant_id', '=', tenantId)
-        .executeTakeFirstOrThrow(),
-      this.db
-        .selectFrom('users')
-        .select(this.db.fn.countAll().as('count'))
-        .where('tenant_id', '=', tenantId)
-        .executeTakeFirstOrThrow(),
-    ]);
+  async getDashboard(tenantId: string) {
+    const [projectsResult, tasksResult, todoResult, inProgressResult, completedResult] =
+      await Promise.all([
+        this.db
+          .selectFrom('projects')
+          .select(this.db.fn.countAll().as('count'))
+          .where('tenant_id', '=', tenantId)
+          .executeTakeFirstOrThrow(),
+        this.db
+          .selectFrom('tasks')
+          .select(this.db.fn.countAll().as('count'))
+          .where('tenant_id', '=', tenantId)
+          .executeTakeFirstOrThrow(),
+        this.db
+          .selectFrom('tasks')
+          .select(this.db.fn.countAll().as('count'))
+          .where('tenant_id', '=', tenantId)
+          .where('status', '=', 'ToDo')
+          .executeTakeFirstOrThrow(),
+        this.db
+          .selectFrom('tasks')
+          .select(this.db.fn.countAll().as('count'))
+          .where('tenant_id', '=', tenantId)
+          .where('status', '=', 'InProgress')
+          .executeTakeFirstOrThrow(),
+        this.db
+          .selectFrom('tasks')
+          .select(this.db.fn.countAll().as('count'))
+          .where('tenant_id', '=', tenantId)
+          .where('status', '=', 'Completed')
+          .executeTakeFirstOrThrow(),
+      ]);
 
     return {
-      total_projects: Number(projects.count),
-      total_tasks: Number(tasks.count),
-      total_users: Number(users.count),
+      totalProjects: Number(projectsResult.count),
+      totalTasks: Number(tasksResult.count),
+      tasksByStatus: {
+        ToDo: Number(todoResult.count),
+        InProgress: Number(inProgressResult.count),
+        Completed: Number(completedResult.count),
+      },
     };
   }
 }
