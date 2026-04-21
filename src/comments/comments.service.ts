@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { DatabaseService } from '../database/database.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -7,11 +7,11 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 export class CommentsService {
   constructor(private readonly db: DatabaseService) {}
 
-  async create(dto: CreateCommentDto, userId: string, tenantId: string) {
+  async create(taskId: string, userId: string, tenantId: string, dto: CreateCommentDto) {
     const task = await this.db
       .selectFrom('tasks')
       .selectAll()
-      .where('id', '=', dto.task_id)
+      .where('id', '=', taskId)
       .where('tenant_id', '=', tenantId)
       .executeTakeFirst();
 
@@ -19,67 +19,23 @@ export class CommentsService {
       throw new NotFoundException('Task not found');
     }
 
-    const id = uuidv4();
-    return this.db
+    const comment = await this.db
       .insertInto('comments')
       .values({
-        id,
-        task_id: dto.task_id,
+        id: uuidv4(),
+        tenant_id: tenantId,
+        task_id: taskId,
         user_id: userId,
         content: dto.content,
-        tenant_id: tenantId,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
-  }
 
-  async findByTask(taskId: string, tenantId: string) {
-    return this.db
-      .selectFrom('comments')
-      .selectAll()
-      .where('task_id', '=', taskId)
-      .where('tenant_id', '=', tenantId)
-      .orderBy('created_at', 'asc')
-      .execute();
-  }
-
-  async findOne(id: string, tenantId: string) {
-    const comment = await this.db
-      .selectFrom('comments')
-      .selectAll()
-      .where('id', '=', id)
-      .where('tenant_id', '=', tenantId)
-      .executeTakeFirst();
-
-    if (!comment) {
-      throw new NotFoundException('Comment not found');
-    }
-
-    return comment;
-  }
-
-  async remove(id: string, userId: string, tenantId: string) {
-    const comment = await this.db
-      .selectFrom('comments')
-      .selectAll()
-      .where('id', '=', id)
-      .where('tenant_id', '=', tenantId)
-      .executeTakeFirst();
-
-    if (!comment) {
-      throw new NotFoundException('Comment not found');
-    }
-
-    if (comment.user_id !== userId) {
-      throw new ForbiddenException('You can only delete your own comments');
-    }
-
-    await this.db
-      .deleteFrom('comments')
-      .where('id', '=', id)
-      .where('tenant_id', '=', tenantId)
-      .execute();
-
-    return { deleted: true };
+    return {
+      id: comment.id,
+      content: comment.content,
+      task_id: comment.task_id,
+      user_id: comment.user_id,
+    };
   }
 }
