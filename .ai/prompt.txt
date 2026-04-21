@@ -590,6 +590,7 @@ PHASE 3 — ARCHITECTURE RULES (follow exactly)
 GLOBAL GUARDS:
 Guards are registered globally via APP_GUARD in app.module.ts.
 NEVER add @UseGuards() to any controller or method — not even once.
+Adding @UseGuards() on a controller causes double-guard execution and auth bugs.
 
 AUTHENTICATION:
 JWT Payload into token: { sub: userId, email, role, tenant_id }
@@ -824,72 +825,45 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 
 PHASE 4 — IMPLEMENT THE STORY
 
-Implement STORY 1 — "Database Foundation"
+STORY NUMBER: 1
+TITLE: Database Foundation
 
-Description:
-Establish global Kysely database integration with full schema types and a single initial migration creating all tables.
+DESCRIPTION:
+Establish the global database layer with Kysely, complete type definitions, and a single migration creating all tables.
 
-Files to create:
+FILES TO CREATE:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-Files to modify:
+FILES TO MODIFY:
 - src/app.module.ts
 
-Acceptance criteria (must ALL be satisfied):
+ACCEPTANCE CRITERIA:
+- DatabaseModule is decorated with @Global() and exports DatabaseService
+- DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
+- types.ts defines Database interface including organizations, users, projects, tasks tables
+- Every table interface includes tenant_id: string (organizations uses its own id as tenant_id)
+- Generated<> is used ONLY on id, created_at, updated_at, is_active columns
+- 001_initial.ts creates organizations, users, projects, tasks tables with all columns, CHECK constraints, FKs, ON DELETE rules, UNIQUE constraints, and indexes exactly as specified
+- users.role CHECK constraint allows only 'Admin','ProjectManager','Member'
+- projects.status CHECK constraint allows only 'Active','Archived'
+- tasks.status CHECK constraint allows only 'ToDo','InProgress','Completed'
+- UNIQUE(name, tenant_id) constraint exists on projects table
+- migrate.ts executes all pending migrations on application bootstrap
+- app.module.ts imports DatabaseModule
 
-1. DatabaseModule is decorated with @Global() and exports DatabaseService
-2. DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-3. types.ts EXACTLY matches the complete schema definition provided above (do not modify structure)
-4. All tables except organizations include tenant_id: string
-5. Generated<> used ONLY on id, created_at, updated_at, is_active, read
-6. 001_initial.ts creates ALL tables:
-   - organizations
-   - users
-   - projects
-   - tasks
-   - comments
-   - attachments
-   - notifications
-   - audit_logs
-   - refresh_tokens
-7. users.role CHECK constraint: ('Admin','ProjectManager','Member')
-8. projects.status CHECK constraint: ('Active','Archived')
-9. tasks.status CHECK constraint: ('ToDo','InProgress','Completed')
-10. Foreign keys with proper ON DELETE CASCADE:
-    - users.organization_id → organizations.id
-    - projects.organization_id → organizations.id
-    - projects.created_by → users.id
-    - tasks.project_id → projects.id
-    - tasks.assignee_id → users.id (SET NULL on delete)
-    - tasks.created_by → users.id
-    - comments.task_id → tasks.id
-    - comments.user_id → users.id
-    - attachments.task_id → tasks.id
-    - attachments.uploaded_by → users.id
-    - notifications.user_id → users.id
-    - audit_logs.organization_id → organizations.id
-    - audit_logs.user_id → users.id (SET NULL)
-    - refresh_tokens.user_id → users.id (CASCADE)
-11. Required indexes:
-    - users(tenant_id)
-    - projects(tenant_id)
-    - tasks(tenant_id, project_id)
-    - comments(tenant_id, task_id)
-12. migrate.ts runs all pending migrations at startup
-13. app.module.ts imports DatabaseModule
-14. Do NOT create duplicate database modules or type files
-15. Follow all absolute architecture rules
+Implement everything exactly according to ARCHITECTURE rules before proceeding.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
-Fix ALL TypeScript errors. Do not use @ts-ignore.
+Fix all errors. Never use @ts-ignore. Repeat until zero errors.
+Do NOT proceed to Phase 6 with a broken build.
 
 PHASE 6 — COMMIT AND PUSH
-Run exactly:
+Run in exact order:
   git add -A
   git commit -m "feat: story-1 Database Foundation"
   git push origin HEAD
