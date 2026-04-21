@@ -359,7 +359,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_tasks_assignee_id')
+    .createIndex('idx_tasks_assigned_to')
     .on('tasks')
     .column('assignee_id')
     .execute();
