@@ -176,7 +176,7 @@ export interface UsersTable {
   password_hash: string;
   first_name: string;
   last_name: string;
-  role: 'Admin' | 'ProjectManager' | 'Member';
+  role: string;
   is_active: Generated<boolean>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -189,7 +189,7 @@ export interface ProjectsTable {
   name: string;
   description: string | null;
   deadline: string | null;
-  status: 'Active' | 'Archived';
+  status: string;
   created_by: string;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -202,7 +202,7 @@ export interface TasksTable {
   assignee_id: string | null;
   title: string;
   description: string | null;
-  status: 'ToDo' | 'InProgress' | 'Completed';
+  status: string;
   priority: string | null;
   due_date: string | null;
   created_by: string;
@@ -590,7 +590,6 @@ PHASE 3 — ARCHITECTURE RULES (follow exactly)
 GLOBAL GUARDS:
 Guards are registered globally via APP_GUARD in app.module.ts.
 NEVER add @UseGuards() to any controller or method — not even once.
-Adding @UseGuards() on a controller causes double-guard execution and auth bugs.
 
 AUTHENTICATION:
 JWT Payload into token: { sub: userId, email, role, tenant_id }
@@ -825,11 +824,11 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 
 PHASE 4 — IMPLEMENT THE STORY
 
-STORY TO IMPLEMENT:
-Story 1 — Database Foundation
+STORY NUMBER: 1
+TITLE: Database Foundation
 
 DESCRIPTION:
-Establishes the global DatabaseModule, Kysely configuration, all table types, and a single migration that creates the complete database schema.
+Establish global Kysely database integration with full schema types and a single migration creating all tables.
 
 FILES TO CREATE:
 - src/database/database.module.ts
@@ -844,20 +843,18 @@ FILES TO MODIFY:
 ACCEPTANCE CRITERIA:
 - DatabaseModule is decorated with @Global() and exports DatabaseService
 - DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts exports a Database interface containing: organizations, users, projects, tasks, comments, attachments, notifications, audit_logs tables
-- Every table interface includes tenant_id: string (including organizations for consistency)
-- Generated<> is used ONLY on id, created_at, updated_at, is_active, and read columns
-- users.role is typed as 'Admin' | 'ProjectManager' | 'Member'
-- projects.status is typed as 'Active' | 'Archived'
-- tasks.status is typed as 'ToDo' | 'InProgress' | 'Completed'
-- 001_initial.ts creates ALL tables with correct columns, PKs, FKs, CHECK constraints, UNIQUE constraints, ON DELETE CASCADE rules, and indexes exactly as specified
-- projects has UNIQUE (tenant_id, name)
-- users.email is UNIQUE globally
-- All foreign keys reference correct parent tables with ON DELETE CASCADE where required
+- types.ts exports Database interface defining tables: organizations, users, projects, tasks
+- Every table interface includes tenant_id: string (organizations tenant_id represents its own id)
+- Generated<> is used ONLY on: id, created_at, updated_at, is_active
+- 001_initial.ts creates ALL tables: organizations, users, projects, tasks with correct columns, constraints, CHECK enums, FKs, ON DELETE rules, composite UNIQUE (tenant_id, name) for projects, and all required indexes
+- users.role CHECK constraint allows exactly 'Admin','ProjectManager','Member'
+- projects.status CHECK constraint allows exactly 'Active','Archived'
+- tasks.status CHECK constraint allows exactly 'ToDo','InProgress','Completed'
+- All foreign keys enforce tenant isolation via tenant_id columns
 - migrate.ts runs all pending migrations on application bootstrap
 - app.module.ts imports DatabaseModule
 
-Implement everything required to satisfy all acceptance criteria.
+Implement everything exactly as specified and fully compliant with all architecture rules above.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
