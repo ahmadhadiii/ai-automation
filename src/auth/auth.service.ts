@@ -16,54 +16,56 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    const existing = await this.db
-      .selectFrom('users')
-      .selectAll()
-      .where('email', '=', dto.email)
-      .executeTakeFirst();
+    return this.db.transaction().execute(async (trx) => {
+      const existing = await trx
+        .selectFrom('users')
+        .selectAll()
+        .where('email', '=', dto.email)
+        .executeTakeFirst();
 
-    if (existing) {
-      throw new ConflictException('Email already registered');
-    }
+      if (existing) {
+        throw new ConflictException('Email already registered');
+      }
 
-    const organizationId = uuidv4();
-    const tenantId = organizationId;
+      const organizationId = uuidv4();
+      const tenantId = organizationId;
 
-    await this.db
-      .insertInto('organizations')
-      .values({
-        id: organizationId,
-        name: `${dto.first_name}'s Organization`,
-        tenant_id: tenantId,
-      })
-      .execute();
+      await trx
+        .insertInto('organizations')
+        .values({
+          id: organizationId,
+          name: `${dto.first_name}'s Organization`,
+          tenant_id: tenantId,
+        })
+        .execute();
 
-    const password_hash = await bcrypt.hash(dto.password, 12);
-    const userId = uuidv4();
+      const password_hash = await bcrypt.hash(dto.password, 12);
+      const userId = uuidv4();
 
-    const user = await this.db
-      .insertInto('users')
-      .values({
-        id: userId,
-        email: dto.email,
-        password_hash,
-        first_name: dto.first_name,
-        last_name: dto.last_name,
-        role: 'Member',
-        tenant_id: tenantId,
-        organization_id: organizationId,
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow();
+      const user = await trx
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: dto.email,
+          password_hash,
+          first_name: dto.first_name,
+          last_name: dto.last_name,
+          role: 'Admin',
+          tenant_id: tenantId,
+          organization_id: organizationId,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow();
 
-    return {
-      id: user.id,
-      email: user.email,
-      first_name: user.first_name,
-      last_name: user.last_name,
-      role: user.role,
-      tenant_id: user.tenant_id,
-    };
+      return {
+        id: user.id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        role: user.role,
+        tenant_id: user.tenant_id,
+      };
+    });
   }
 
   async login(dto: LoginDto) {
@@ -90,6 +92,7 @@ export class AuthService {
     };
 
     const refreshToken = uuidv4();
+    const tokenHash = await bcrypt.hash(refreshToken, 10);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -98,7 +101,7 @@ export class AuthService {
       .values({
         id: uuidv4(),
         user_id: user.id,
-        token: refreshToken,
+        token_hash: tokenHash,
         expires_at: expiresAt,
       })
       .execute();
@@ -116,28 +119,34 @@ export class AuthService {
   }
 
   async refresh(dto: RefreshTokenDto) {
-    const tokenRecord = await this.db
+    const tokenRecords = await this.db
       .selectFrom('refresh_tokens')
       .selectAll()
-      .where('token', '=', dto.refresh_token)
-      .executeTakeFirst();
+      .where('expires_at', '>', new Date())
+      .execute();
 
-    if (!tokenRecord) {
+    let matchedRecord: typeof tokenRecords[0] | undefined;
+    for (const record of tokenRecords) {
+      const isMatch = await bcrypt.compare(dto.refresh_token, record.token_hash);
+      if (isMatch) {
+        matchedRecord = record;
+        break;
+      }
+    }
+
+    if (!matchedRecord) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    if (new Date(tokenRecord.expires_at) < new Date()) {
-      await this.db
-        .deleteFrom('refresh_tokens')
-        .where('id', '=', tokenRecord.id)
-        .execute();
-      throw new UnauthorizedException('Refresh token expired');
-    }
+    await this.db
+      .deleteFrom('refresh_tokens')
+      .where('id', '=', matchedRecord.id)
+      .execute();
 
     const user = await this.db
       .selectFrom('users')
       .selectAll()
-      .where('id', '=', tokenRecord.user_id)
+      .where('id', '=', matchedRecord.user_id)
       .executeTakeFirst();
 
     if (!user) {
@@ -151,8 +160,42 @@ export class AuthService {
       tenant_id: user.tenant_id,
     };
 
+    const newRefreshToken = uuidv4();
+    const newTokenHash = await bcrypt.hash(newRefreshToken, 10);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await this.db
+      .insertInto('refresh_tokens')
+      .values({
+        id: uuidv4(),
+        user_id: user.id,
+        token_hash: newTokenHash,
+        expires_at: expiresAt,
+      })
+      .execute();
+
     return {
       access_token: this.jwtService.sign(payload),
+      refresh_token: newRefreshToken,
     };
+  }
+
+  async logout(refreshToken: string) {
+    const tokenRecords = await this.db
+      .selectFrom('refresh_tokens')
+      .selectAll()
+      .execute();
+
+    for (const record of tokenRecords) {
+      const isMatch = await bcrypt.compare(refreshToken, record.token_hash);
+      if (isMatch) {
+        await this.db
+          .deleteFrom('refresh_tokens')
+          .where('id', '=', record.id)
+          .execute();
+        return;
+      }
+    }
   }
 }

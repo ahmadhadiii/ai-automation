@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { DatabaseService } from '../database/database.service';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 
@@ -34,7 +35,7 @@ export class ProjectsService {
     return record;
   }
 
-  async findAll(tenantId: string, query: any) {
+  async findAll(tenantId: string, query: PaginationQueryDto) {
     const page = Number(query.page) || 1;
     const limit = Math.min(Number(query.limit) || 20, 100);
     const offset = (page - 1) * limit;

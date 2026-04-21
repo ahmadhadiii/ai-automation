@@ -9,8 +9,9 @@ import {
 } from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { AuthRequest } from '../auth/auth-request.interface';
 
-@Controller('api/tasks/:taskId/comments')
+@Controller('tasks/:taskId/comments')
 export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}
 
@@ -19,7 +20,7 @@ export class CommentsController {
   create(
     @Param('taskId') taskId: string,
     @Body() dto: CreateCommentDto,
-    @Request() req: any,
+    @Request() req: AuthRequest,
   ) {
     return this.commentsService.create(taskId, req.user.id, req.user.tenant_id, dto);
   }

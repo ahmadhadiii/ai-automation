@@ -68,6 +68,7 @@ export interface CommentsTable {
   user_id: string;
   content: string;
   created_at: Generated<Date>;
+  updated_at: Generated<Date>;
 }
 
 export interface AttachmentsTable {
@@ -108,7 +109,7 @@ export interface AuditLogsTable {
 export interface RefreshTokensTable {
   id: Generated<string>;
   user_id: string;
-  token: string;
+  token_hash: string;
   expires_at: Date;
   created_at: Generated<Date>;
 }

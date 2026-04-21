@@ -10,6 +10,7 @@ import {
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { Roles } from '../auth/roles.decorator';
+import { AuthRequest } from '../auth/auth-request.interface';
 
 @Controller('projects/:projectId/tasks')
 export class TasksController {
@@ -21,7 +22,7 @@ export class TasksController {
   create(
     @Param('projectId') projectId: string,
     @Body() dto: CreateTaskDto,
-    @Request() req: any,
+    @Request() req: AuthRequest,
   ) {
     return this.tasksService.create(projectId, req.user.id, req.user.tenant_id, dto);
   }

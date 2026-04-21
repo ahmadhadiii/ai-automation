@@ -1,11 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly db: DatabaseService) {}
 
-  async findAll(tenantId: string, query: any) {
+  async findAll(tenantId: string, query: PaginationQueryDto) {
     const page = Number(query.page) || 1;
     const limit = Math.min(Number(query.limit) || 20, 100);
     const offset = (page - 1) * limit;

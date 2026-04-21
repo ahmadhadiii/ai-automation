@@ -1,12 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { DatabaseService } from '../database/database.service';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Injectable()
 export class NotificationsService {
   constructor(private readonly db: DatabaseService) {}
 
-  async findAll(tenantId: string, userId: string, query: any) {
+  async findAll(tenantId: string, userId: string, query: PaginationQueryDto) {
     const page = Number(query.page) || 1;
     const limit = Math.min(Number(query.limit) || 20, 100);
     const offset = (page - 1) * limit;
