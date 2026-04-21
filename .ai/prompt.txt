@@ -889,50 +889,42 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 
 PHASE 4 — IMPLEMENT THE STORY
 
-STORY NUMBER: 3  
-TITLE: Organizations Module
+STORY 3 — Organizations Module
+Title: Organizations Module
+Description: Allow creation of a new organization with its first Admin user and return an access token.
 
-DESCRIPTION:
-Allow creation of a new organization with its first Admin user and return an access token.
-
-FILES TO CREATE:
+Files to create:
 - src/organizations/organizations.module.ts
 - src/organizations/organizations.controller.ts
 - src/organizations/organizations.service.ts
 - src/organizations/dto/create-organization.dto.ts
 
-FILES TO MODIFY:
+Files to modify:
 - src/app.module.ts
 
-ACCEPTANCE CRITERIA:
+Acceptance Criteria:
 - OrganizationsController exposes POST /api/organizations marked with @Public()
 - CreateOrganizationDto has:
-    name: @IsString() @Length(1,255)
-    email: @IsEmail()
-    password: @MinLength(8)
-    first_name: @Length(1,100)
-    last_name: @Length(1,100)
-- POST /api/organizations creates organization and first user with role 'Admin', hashes password with bcrypt(12)
-- Email must be globally unique or throw ConflictException
-- Response is { access_token, user: { id, email, role: 'Admin', tenant_id } }
+  - name: @IsString() @Length(1,255)
+  - email: @IsEmail()
+  - password: @MinLength(8)
+  - first_name: @Length(1,100)
+  - last_name: @Length(1,100)
+- POST /api/organizations:
+  - creates organization
+  - creates first user with role 'Admin'
+  - hashes password using bcrypt with 12 salt rounds
+  - email must be globally unique or throw ConflictException
+  - returns { access_token, user: { id, email, role: 'Admin', tenant_id } }
 - JWT payload contains { sub, email, role, tenant_id }
 - OrganizationsController has NO @UseGuards() decorator
 - OrganizationsModule is added to app.module.ts imports
 
-DEPENDENCIES:
-- Depends on Authentication Module (Story 2) and Database Foundation (Story 1). Use existing AuthService or JwtService patterns consistently.
-
-IMPLEMENTATION REQUIREMENTS:
-- Use uuidv4() for organization.id, organization.tenant_id, and user.id
-- organization.tenant_id must equal the generated tenant identifier used for the first user
-- Insert organization first, then user referencing organization_id
-- Hash password using bcrypt.hash(password, 12)
-- Generate JWT using same secret and config pattern as AuthModule
-- JWT payload must be exactly { sub, email, role, tenant_id }
-- Do NOT add @UseGuards()
-- Mark route with @Public()
-- Add OrganizationsModule to app.module.ts imports[]
-- Ensure build passes with npx tsc --noEmit
+Follow all architecture rules strictly.
+Ensure email uniqueness across all tenants.
+Use uuidv4() for organization and user IDs.
+Ensure all inserts include tenant_id.
+Use JwtService to sign access token consistent with existing Auth module.
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
@@ -941,9 +933,9 @@ Do NOT proceed to Phase 6 with a broken build.
 
 PHASE 6 — COMMIT AND PUSH
 Run in exact order:
-  git add -A
-  git commit -m "feat: story-3 Organizations Module"
-  git push origin HEAD
+git add -A
+git commit -m "feat: story-3 Organizations Module"
+git push origin HEAD
 
 After push succeeds output exactly:
 === STORY 3 COMPLETE — NEXT STORY TRIGGERED ===
