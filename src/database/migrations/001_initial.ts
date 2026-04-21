@@ -296,7 +296,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['user_id'],
       'users',
       ['id'],
-      (cb) => cb.onDelete('cascade'),
+      (cb) => cb.onDelete('set null'),
     )
     .execute();
 

@@ -1,5 +1,5 @@
 === COMPLETED STORIES ===
-Stories already implemented: 1, 2, 3, 4, 5, 6, 7
+Stories already implemented: 1, 2, 3, 4, 5, 6, 7, 8
 Do NOT re-implement these. Build on top of existing code.
 
 === CURRENT REPO FILE TREE ===
@@ -615,82 +615,82 @@ export class LoginDto {
 === YOUR TASK ===
 DIRECT AGENT INSTRUCTION:
 
-You are Claude Code operating inside a real git repository.
-Stack: NestJS 10 + Kysely 0.27 + PostgreSQL
-You have full access to read, create, modify files and run shell commands.
+You are Claude Code operating inside a real git repository.  
+Stack: NestJS 10 + Kysely 0.27 + PostgreSQL  
+You have full access to read, create, modify files and run shell commands.  
 Do not explain. Do not produce markdown. Only make file changes and run commands.
 
-PHASE 1 — READ FIRST (mandatory, do not skip)
-Read these files completely before writing any code:
-1. ARCHITECTURE.md — your law. Follow every pattern exactly.
-2. src/app.module.ts
-3. src/database/types.ts
-4. src/database/database.service.ts
-5. src/auth/auth.guard.ts
-6. src/auth/jwt.strategy.ts
-7. src/auth/public.decorator.ts
-8. src/auth/roles.decorator.ts
+PHASE 1 — READ FIRST (mandatory, do not skip)  
+Read these files completely before writing any code:  
+1. ARCHITECTURE.md — your law. Follow every pattern exactly.  
+2. src/app.module.ts  
+3. src/database/types.ts  
+4. src/database/database.service.ts  
+5. src/auth/auth.guard.ts  
+6. src/auth/jwt.strategy.ts  
+7. src/auth/public.decorator.ts  
+8. src/auth/roles.decorator.ts  
 If any file does not exist yet, skip it and continue.
 
-PHASE 2 — APPLY BUG FIXES (scan all existing files, fix silently)
-FIX 1: req.user.sub to req.user.id in ALL controllers
-FIX 2: Remove ALL @UseGuards() from ALL controllers
-FIX 3: @Roles('ADMIN') to @Roles('Admin') everywhere
-FIX 4: Remove role field from src/auth/dto/register.dto.ts if present
-FIX 5: In auth.service.ts hardcode role: 'Member' instead of dto.role
-FIX 6: Delete src/modules/database/ if it exists
-FIX 7: Delete src/database/kysely.module.ts if it exists
-FIX 8: Delete src/database/database.types.ts if it exists
-FIX 9: Remove KyselyModule from app.module.ts imports if present
-FIX 10: In ALL services replace .select(['col1','col2']) with .selectAll()
-FIX 11: In types.ts make tenant_id plain string on EVERY table interface
-FIX 12: In types.ts Generated<> only on id, created_at, updated_at, is_active, read
-FIX 13: In tasks files replace 'TODO' with 'ToDo', 'IN_PROGRESS' with 'InProgress', 'DONE' with 'Completed'
-FIX 14: Make sure TasksTable has assignee_id: string | null
+PHASE 2 — APPLY BUG FIXES (scan all existing files, fix silently)  
+FIX 1: req.user.sub to req.user.id in ALL controllers  
+FIX 2: Remove ALL @UseGuards() from ALL controllers  
+FIX 3: @Roles('ADMIN') to @Roles('Admin') everywhere  
+FIX 4: Remove role field from src/auth/dto/register.dto.ts if present  
+FIX 5: In auth.service.ts hardcode role: 'Member' instead of dto.role  
+FIX 6: Delete src/modules/database/ if it exists  
+FIX 7: Delete src/database/kysely.module.ts if it exists  
+FIX 8: Delete src/database/database.types.ts if it exists  
+FIX 9: Remove KyselyModule from app.module.ts imports if present  
+FIX 10: In ALL services replace .select(['col1','col2']) with .selectAll()  
+FIX 11: In types.ts make tenant_id plain string on EVERY table interface  
+FIX 12: In types.ts Generated<> only on id, created_at, updated_at, is_active, read  
+FIX 13: In tasks files replace 'TODO' with 'ToDo', 'IN_PROGRESS' with 'InProgress', 'DONE' with 'Completed'  
+FIX 14: Make sure TasksTable has assignee_id: string | null  
 
 PHASE 3 — ARCHITECTURE RULES (follow exactly)
 
-GLOBAL GUARDS:
-Guards are registered globally via APP_GUARD in app.module.ts.
-NEVER add @UseGuards() to any controller or method — not even once.
+GLOBAL GUARDS:  
+Guards are registered globally via APP_GUARD in app.module.ts.  
+NEVER add @UseGuards() to any controller or method — not even once.  
 Adding @UseGuards() on a controller causes double-guard execution and auth bugs.
 
-AUTHENTICATION:
-JWT Payload into token: { sub: userId, email, role, tenant_id }
-req.user after validation: { id, email, role, tenant_id }
-ALWAYS use req.user.id — NEVER use req.user.sub
-jwt.strategy.ts validate() must return exactly:
+AUTHENTICATION:  
+JWT Payload into token: { sub: userId, email, role, tenant_id }  
+req.user after validation: { id, email, role, tenant_id }  
+ALWAYS use req.user.id — NEVER use req.user.sub  
+jwt.strategy.ts validate() must return exactly:  
   return { id: payload.sub, email: payload.email, role: payload.role, tenant_id: payload.tenant_id }
 
-ROLE VALUES — exact casing:
-'Admin' | 'ProjectManager' | 'Member'
+ROLE VALUES — exact casing:  
+'Admin' | 'ProjectManager' | 'Member'  
 WRONG: 'ADMIN', 'admin', 'MEMBER'
 
-STATUS VALUES — exact casing:
-Task: 'ToDo' | 'InProgress' | 'Completed'
-Project: 'Active' | 'Archived'
+STATUS VALUES — exact casing:  
+Task: 'ToDo' | 'InProgress' | 'Completed'  
+Project: 'Active' | 'Archived'  
 WRONG: 'TODO', 'IN_PROGRESS', 'DONE'
 
-REGISTRATION RULE:
+REGISTRATION RULE:  
 Register endpoint NEVER accepts role from body. Hardcode: role: 'Member'
 
-KYSELY SELECT RULES:
-NEVER: .select(['id', 'email']) — TypeScript error, Kysely rejects arrays
-CORRECT: .selectAll()
+KYSELY SELECT RULES:  
+NEVER: .select(['id', 'email']) — TypeScript error, Kysely rejects arrays  
+CORRECT: .selectAll()  
 CORRECT: .select('id').select('email')
 
-KYSELY Generated<T> RULES:
-Generated<> ONLY for: id, created_at, updated_at, is_active, read
-Everything else is plain string or string | null:
-  tenant_id        → string (never Generated)
-  email            → string
-  role             → string
-  organization_id  → string
-  created_by       → string
-  assignee_id      → string | null
-  description      → string | null
-  due_date         → string | null
-  deadline         → string | null
+KYSELY Generated<T> RULES:  
+Generated<> ONLY for: id, created_at, updated_at, is_active, read  
+Everything else is plain string or string | null:  
+  tenant_id        → string (never Generated)  
+  email            → string  
+  role             → string  
+  organization_id  → string  
+  created_by       → string  
+  assignee_id      → string | null  
+  description      → string | null  
+  due_date         → string | null  
+  deadline         → string | null  
 
 COMPLETE types.ts — use this exact content:
 import { Generated } from 'kysely';
@@ -856,116 +856,81 @@ app.module.ts — every new module MUST be added to imports[]:
 export class AppModule {}
 
 FILES THAT MUST NEVER BE DUPLICATED:
-Only ONE DatabaseModule: src/database/database.module.ts
-Only ONE types.ts: src/database/types.ts
-Only ONE app.module.ts: src/app.module.ts
-NEVER create: src/modules/database/, src/database/kysely.module.ts, src/database/database.types.ts
+Only ONE DatabaseModule: src/database/database.module.ts  
+Only ONE types.ts: src/database/types.ts  
+Only ONE app.module.ts: src/app.module.ts  
+NEVER create: src/modules/database/, src/database/kysely.module.ts, src/database/database.types.ts  
 
 ADDING A NEW MODULE CHECKLIST:
-1. Create src/{module}/{module}.module.ts
-2. Create src/{module}/{module}.controller.ts — NO @UseGuards()
-3. Create src/{module}/{module}.service.ts — inject DatabaseService
-4. Create src/{module}/dto/create-{module}.dto.ts
-5. Create src/{module}/dto/update-{module}.dto.ts
-6. Verify every query has .where('tenant_id', '=', tenantId)
-7. Verify every list endpoint returns { data, meta }
-8. Add {Module}Module to imports[] in src/app.module.ts
+1. Create src/{module}/{module}.module.ts  
+2. Create src/{module}/{module}.controller.ts — NO @UseGuards()  
+3. Create src/{module}/{module}.service.ts — inject DatabaseService  
+4. Create src/{module}/dto/create-{module}.dto.ts (if needed)  
+5. Verify every query has .where('tenant_id', '=', tenantId)  
+6. Verify every list endpoint returns { data, meta }  
+7. Add {Module}Module to imports[] in src/app.module.ts  
 
 ABSOLUTE RULES — VIOLATION MEANS FAILURE:
-1. NEVER add @UseGuards() to any controller
-2. Use @Public() for unauthenticated routes
-3. Use req.user.id never req.user.sub
-4. EVERY query must filter by tenant_id
-5. Use uuidv4() for all IDs
-6. All list endpoints return { data, meta: { total, page, limit, totalPages } }
-7. Register hardcodes role: 'Member'
-8. Task status: 'ToDo', 'InProgress', 'Completed'
-9. Project status: 'Active', 'Archived'
-10. Roles: 'Admin', 'ProjectManager', 'Member'
-11. Every new module added to app.module.ts imports[]
-12. NEVER .select(['col1','col2']) — use .selectAll()
-13. EVERY table interface has tenant_id: string
+1. NEVER add @UseGuards() to any controller  
+2. Use @Public() for unauthenticated routes  
+3. Use req.user.id never req.user.sub  
+4. EVERY query must filter by tenant_id  
+5. Use uuidv4() for all IDs  
+6. All list endpoints return { data, meta: { total, page, limit, totalPages } }  
+7. Register hardcodes role: 'Member'  
+8. Task status: 'ToDo', 'InProgress', 'Completed'  
+9. Project status: 'Active', 'Archived'  
+10. Roles: 'Admin', 'ProjectManager', 'Member'  
+11. Every new module added to app.module.ts imports[]  
+12. NEVER .select(['col1','col2']) — use .selectAll()  
+13. EVERY table interface has tenant_id: string  
 
 PHASE 4 — IMPLEMENT THE STORY
 
-STORY NUMBER: 8
-TITLE: Dashboard and Notifications Module
-DESCRIPTION: Provide aggregated tenant dashboard metrics and basic notification listing.
+Story Number: 9  
+Title: Audit Logs Module  
 
-FILES TO CREATE:
-- src/dashboard/dashboard.module.ts
-- src/dashboard/dashboard.controller.ts
-- src/dashboard/dashboard.service.ts
-- src/notifications/notifications.module.ts
-- src/notifications/notifications.controller.ts
-- src/notifications/notifications.service.ts
+Description:  
+Introduce tenant-scoped audit logging for key actions across the system.
 
-FILES TO MODIFY:
-- src/app.module.ts
+Files to create:
+- src/audit/audit.module.ts  
+- src/audit/audit.controller.ts  
+- src/audit/audit.service.ts  
 
-ACCEPTANCE CRITERIA:
-1. DashboardController exposes GET /api/dashboard
-2. GET /api/dashboard returns { totalProjects, totalTasks, tasksByStatus: { ToDo, InProgress, Completed } } filtered by tenant_id
-3. NotificationsController exposes GET /api/notifications?page=1&limit=20
-4. GET /api/notifications returns paginated empty array structure { data: [], meta } (placeholder implementation)
-5. All queries include tenant_id filter
-6. Controllers have NO @UseGuards() decorator
-7. DashboardModule and NotificationsModule are added to app.module.ts imports
+Files to modify:
+- src/app.module.ts  
+- src/database/types.ts  
+- src/database/migrations/001_initial.ts  
 
-IMPLEMENTATION REQUIREMENTS:
+Acceptance Criteria:
+- Add audit_logs table definition to types.ts with id, action, entity, entity_id, user_id, tenant_id, created_at  
+- Modify 001_initial.ts to create audit_logs table with FK user_id references users(id) ON DELETE SET NULL and index idx_audit_logs_tenant_id  
+- AuditController exposes GET /api/audit-logs?page=1&limit=20  
+- GET /api/audit-logs requires @Roles('Admin')  
+- GET /api/audit-logs filters by tenant_id and returns paginated { data, meta }  
+- AuditController has NO @UseGuards() decorator  
+- AuditModule is added to app.module.ts imports  
 
-DASHBOARD:
-- Route prefix: @Controller('api/dashboard')
-- GET handler uses req.user.tenant_id
-- totalProjects: count from projects table filtered by tenant_id
-- totalTasks: count from tasks table filtered by tenant_id
-- tasksByStatus: three separate counts for status 'ToDo', 'InProgress', 'Completed', each filtered by tenant_id
-- Return exactly:
-  {
-    totalProjects: number,
-    totalTasks: number,
-    tasksByStatus: {
-      ToDo: number,
-      InProgress: number,
-      Completed: number
-    }
-  }
+Implementation Requirements:
+- Follow pagination pattern exactly as defined above  
+- Every query must include .where('tenant_id', '=', tenantId)  
+- Use .selectAll() only  
+- Ensure migration matches types.ts structure  
+- Ensure foreign key constraint: user_id → users(id) ON DELETE SET NULL  
+- Create index: idx_audit_logs_tenant_id  
+- Use exact role string 'Admin'  
 
-NOTIFICATIONS:
-- Route prefix: @Controller('api/notifications')
-- GET handler supports page & limit query params
-- Must return:
-  {
-    data: [],
-    meta: {
-      total: number,
-      page: number,
-      limit: number,
-      totalPages: number
-    }
-  }
-- Even though placeholder, still calculate pagination variables correctly
-- total should be 0
-- totalPages should compute correctly (0 or 1 depending on logic but must not crash)
-- MUST include tenant_id filter pattern in count query structure (even if returning 0 safely)
-
-Both modules:
-- Inject DatabaseService
-- Follow pagination pattern exactly
-- Add both modules to app.module.ts imports[]
-- Ensure no @UseGuards() anywhere
-- Ensure build passes strict TypeScript
-
-PHASE 5 — VERIFY BUILD
-Run: npx tsc --noEmit
-Fix all errors. Never use @ts-ignore. Repeat until zero errors.
+PHASE 5 — VERIFY BUILD  
+Run: npx tsc --noEmit  
+Fix all errors. Never use @ts-ignore. Repeat until zero errors.  
 Do NOT proceed to Phase 6 with a broken build.
 
-PHASE 6 — COMMIT AND PUSH
+PHASE 6 — COMMIT AND PUSH  
 Run in exact order:
-  git add -A
-  git commit -m "feat: story-8 Dashboard and Notifications Module"
-  git push origin HEAD
+  git add -A  
+  git commit -m "feat: story-9 Audit Logs Module"  
+  git push origin HEAD  
 
 After push succeeds output exactly:
-=== STORY 8 COMPLETE — NEXT STORY TRIGGERED ===
+=== STORY 9 COMPLETE — NEXT STORY TRIGGERED ===
