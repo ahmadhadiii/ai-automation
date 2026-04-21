@@ -824,45 +824,72 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 
 PHASE 4 — IMPLEMENT THE STORY
 
-STORY NUMBER: 1
-TITLE: Database Foundation
+Implement STORY 1 — "Database Foundation"
 
-DESCRIPTION:
-Establish global Kysely database integration with full schema types and a single migration creating all tables.
+Description:
+Establish global Kysely database integration with full schema types and a single initial migration creating all tables.
 
-FILES TO CREATE:
+Files to create:
 - src/database/database.module.ts
 - src/database/database.service.ts
 - src/database/types.ts
 - src/database/migrations/001_initial.ts
 - src/database/migrate.ts
 
-FILES TO MODIFY:
+Files to modify:
 - src/app.module.ts
 
-ACCEPTANCE CRITERIA:
-- DatabaseModule is decorated with @Global() and exports DatabaseService
-- DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
-- types.ts exports Database interface defining tables: organizations, users, projects, tasks
-- Every table interface includes tenant_id: string (organizations tenant_id represents its own id)
-- Generated<> is used ONLY on: id, created_at, updated_at, is_active
-- 001_initial.ts creates ALL tables: organizations, users, projects, tasks with correct columns, constraints, CHECK enums, FKs, ON DELETE rules, composite UNIQUE (tenant_id, name) for projects, and all required indexes
-- users.role CHECK constraint allows exactly 'Admin','ProjectManager','Member'
-- projects.status CHECK constraint allows exactly 'Active','Archived'
-- tasks.status CHECK constraint allows exactly 'ToDo','InProgress','Completed'
-- All foreign keys enforce tenant isolation via tenant_id columns
-- migrate.ts runs all pending migrations on application bootstrap
-- app.module.ts imports DatabaseModule
+Acceptance criteria (must ALL be satisfied):
 
-Implement everything exactly as specified and fully compliant with all architecture rules above.
+1. DatabaseModule is decorated with @Global() and exports DatabaseService
+2. DatabaseService extends Kysely<Database> and connects using process.env.DATABASE_URL
+3. types.ts EXACTLY matches the complete schema definition provided above (do not modify structure)
+4. All tables except organizations include tenant_id: string
+5. Generated<> used ONLY on id, created_at, updated_at, is_active, read
+6. 001_initial.ts creates ALL tables:
+   - organizations
+   - users
+   - projects
+   - tasks
+   - comments
+   - attachments
+   - notifications
+   - audit_logs
+   - refresh_tokens
+7. users.role CHECK constraint: ('Admin','ProjectManager','Member')
+8. projects.status CHECK constraint: ('Active','Archived')
+9. tasks.status CHECK constraint: ('ToDo','InProgress','Completed')
+10. Foreign keys with proper ON DELETE CASCADE:
+    - users.organization_id → organizations.id
+    - projects.organization_id → organizations.id
+    - projects.created_by → users.id
+    - tasks.project_id → projects.id
+    - tasks.assignee_id → users.id (SET NULL on delete)
+    - tasks.created_by → users.id
+    - comments.task_id → tasks.id
+    - comments.user_id → users.id
+    - attachments.task_id → tasks.id
+    - attachments.uploaded_by → users.id
+    - notifications.user_id → users.id
+    - audit_logs.organization_id → organizations.id
+    - audit_logs.user_id → users.id (SET NULL)
+    - refresh_tokens.user_id → users.id (CASCADE)
+11. Required indexes:
+    - users(tenant_id)
+    - projects(tenant_id)
+    - tasks(tenant_id, project_id)
+    - comments(tenant_id, task_id)
+12. migrate.ts runs all pending migrations at startup
+13. app.module.ts imports DatabaseModule
+14. Do NOT create duplicate database modules or type files
+15. Follow all absolute architecture rules
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
-Fix all errors. Never use @ts-ignore. Repeat until zero errors.
-Do NOT proceed to Phase 6 with a broken build.
+Fix ALL TypeScript errors. Do not use @ts-ignore.
 
 PHASE 6 — COMMIT AND PUSH
-Run in exact order:
+Run exactly:
   git add -A
   git commit -m "feat: story-1 Database Foundation"
   git push origin HEAD
