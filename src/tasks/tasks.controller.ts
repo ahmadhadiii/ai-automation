@@ -1,47 +1,28 @@
 import {
   Controller,
-  Get,
   Post,
-  Put,
-  Delete,
   Body,
   Param,
   Request,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
-import { UpdateTaskDto } from './dto/update-task.dto';
+import { Roles } from '../auth/roles.decorator';
 
-@Controller('tasks')
+@Controller('projects/:projectId/tasks')
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Post()
-  create(@Body() dto: CreateTaskDto, @Request() req: any) {
-    return this.tasksService.create(dto, req.user.id, req.user.tenant_id);
-  }
-
-  @Get()
-  findAll(@Request() req: any) {
-    return this.tasksService.findAll(req.user.tenant_id);
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string, @Request() req: any) {
-    return this.tasksService.findOne(id, req.user.tenant_id);
-  }
-
-  @Put(':id')
-  update(
-    @Param('id') id: string,
-    @Body() dto: UpdateTaskDto,
+  @Roles('Admin', 'ProjectManager')
+  @HttpCode(HttpStatus.CREATED)
+  create(
+    @Param('projectId') projectId: string,
+    @Body() dto: CreateTaskDto,
     @Request() req: any,
   ) {
-    return this.tasksService.update(id, dto, req.user.tenant_id);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string, @Request() req: any) {
-    return this.tasksService.remove(id, req.user.tenant_id);
+    return this.tasksService.create(projectId, req.user.id, req.user.tenant_id, dto);
   }
 }

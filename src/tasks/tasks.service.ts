@@ -1,18 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { DatabaseService } from '../database/database.service';
 import { CreateTaskDto } from './dto/create-task.dto';
-import { UpdateTaskDto } from './dto/update-task.dto';
 
 @Injectable()
 export class TasksService {
   constructor(private readonly db: DatabaseService) {}
 
-  async create(dto: CreateTaskDto, userId: string, tenantId: string) {
+  async create(projectId: string, userId: string, tenantId: string, dto: CreateTaskDto) {
     const project = await this.db
       .selectFrom('projects')
       .selectAll()
-      .where('id', '=', dto.project_id)
+      .where('id', '=', projectId)
       .where('tenant_id', '=', tenantId)
       .executeTakeFirst();
 
@@ -20,86 +19,42 @@ export class TasksService {
       throw new NotFoundException('Project not found');
     }
 
-    const id = uuidv4();
-    return this.db
+    if (dto.assigned_to) {
+      const assignee = await this.db
+        .selectFrom('users')
+        .selectAll()
+        .where('id', '=', dto.assigned_to)
+        .where('tenant_id', '=', tenantId)
+        .executeTakeFirst();
+
+      if (!assignee) {
+        throw new BadRequestException('Assigned user does not belong to this tenant');
+      }
+    }
+
+    const task = await this.db
       .insertInto('tasks')
       .values({
-        id,
+        id: uuidv4(),
         title: dto.title,
         description: dto.description || null,
         status: dto.status || 'ToDo',
         priority: null,
-        project_id: dto.project_id,
-        assignee_id: dto.assignee_id || null,
-        due_date: dto.due_date || null,
+        project_id: projectId,
+        assignee_id: dto.assigned_to || null,
+        due_date: null,
         created_by: userId,
         tenant_id: tenantId,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
-  }
 
-  async findAll(tenantId: string) {
-    return this.db
-      .selectFrom('tasks')
-      .selectAll()
-      .where('tenant_id', '=', tenantId)
-      .orderBy('created_at', 'desc')
-      .execute();
-  }
-
-  async findOne(id: string, tenantId: string) {
-    const task = await this.db
-      .selectFrom('tasks')
-      .selectAll()
-      .where('id', '=', id)
-      .where('tenant_id', '=', tenantId)
-      .executeTakeFirst();
-
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    return task;
-  }
-
-  async update(id: string, dto: UpdateTaskDto, tenantId: string) {
-    const updateData: Record<string, any> = {};
-    if (dto.title !== undefined) updateData.title = dto.title;
-    if (dto.description !== undefined) updateData.description = dto.description;
-    if (dto.status !== undefined) updateData.status = dto.status;
-    if (dto.assignee_id !== undefined) updateData.assignee_id = dto.assignee_id;
-    if (dto.due_date !== undefined) updateData.due_date = dto.due_date;
-
-    updateData.updated_at = new Date();
-
-    const task = await this.db
-      .updateTable('tasks')
-      .set(updateData)
-      .where('id', '=', id)
-      .where('tenant_id', '=', tenantId)
-      .returningAll()
-      .executeTakeFirst();
-
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    return task;
-  }
-
-  async remove(id: string, tenantId: string) {
-    const result = await this.db
-      .deleteFrom('tasks')
-      .where('id', '=', id)
-      .where('tenant_id', '=', tenantId)
-      .returningAll()
-      .executeTakeFirst();
-
-    if (!result) {
-      throw new NotFoundException('Task not found');
-    }
-
-    return result;
+    return {
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      project_id: task.project_id,
+      assigned_to: task.assignee_id,
+    };
   }
 }
