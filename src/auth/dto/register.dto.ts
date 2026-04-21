@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsUUID, IsOptional } from 'class-validator';
+import { IsEmail, IsString, MinLength, Length } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -9,16 +9,10 @@ export class RegisterDto {
   password: string;
 
   @IsString()
-  tenant_id: string;
+  @Length(1, 100)
+  first_name: string;
 
-  @IsUUID()
-  organization_id: string;
-
-  @IsOptional()
   @IsString()
-  first_name?: string;
-
-  @IsOptional()
-  @IsString()
-  last_name?: string;
+  @Length(1, 100)
+  last_name: string;
 }
