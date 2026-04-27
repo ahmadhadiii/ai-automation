@@ -1,5 +1,6 @@
 === COMPLETED STORIES ===
-No stories completed yet. This is the first implementation.
+Stories already implemented: 1
+Do NOT re-implement these. Build on top of existing code.
 
 === CURRENT REPO FILE TREE ===
 .ai/
@@ -814,212 +815,160 @@ export class LoginDto {
 === YOUR TASK ===
 DIRECT AGENT INSTRUCTION:
 
-You are Claude Code operating inside a real git repository.
-Stack: NestJS 10 + Kysely 0.27 + PostgreSQL
-You have full access to read, create, modify files and run shell commands.
+You are Claude Code operating inside a real git repository.  
+Stack: NestJS 10 + Kysely 0.27 + PostgreSQL  
+You have full access to read, create, modify files and run shell commands.  
 Do not explain. Do not produce markdown. Only make file changes and run commands.
 
-PHASE 1 — READ FIRST (mandatory, do not skip)
-Read these files completely before writing any code:
-1. ARCHITECTURE.md — your law. Follow every pattern exactly.
-2. src/app.module.ts
-3. src/database/types.ts
-4. src/database/database.service.ts
-5. src/auth/auth.guard.ts
-6. src/auth/jwt.strategy.ts
-7. src/auth/public.decorator.ts
-8. src/auth/roles.decorator.ts
-9. src/auth/auth-request.interface.ts
+PHASE 1 — READ FIRST (mandatory, do not skip)  
+Read these files completely before writing any code:  
+1. ARCHITECTURE.md — your law. Follow every pattern exactly.  
+2. src/app.module.ts  
+3. src/database/types.ts  
+4. src/database/database.service.ts  
+5. src/auth/auth.guard.ts  
+6. src/auth/jwt.strategy.ts  
+7. src/auth/public.decorator.ts  
+8. src/auth/roles.decorator.ts  
+9. src/auth/auth-request.interface.ts  
 If any file does not exist yet, skip it and continue.
 
-PHASE 2 — APPLY BUG FIXES (scan all existing files, fix silently)
-FIX 1: req.user.sub to req.user.id in ALL controllers
-FIX 2: Remove ALL @UseGuards() from ALL controllers
-FIX 3: @Roles('ADMIN') to @Roles('Admin') everywhere
-FIX 4: Remove role field from src/auth/dto/register.dto.ts if present
-FIX 5: In auth.service.ts hardcode role: 'Admin' for first user
-FIX 6: Delete src/modules/database/ if it exists
-FIX 7: Delete src/database/kysely.module.ts if it exists
-FIX 8: Delete src/database/database.types.ts if it exists
-FIX 9: Remove KyselyModule from app.module.ts if present
-FIX 10: In ALL services replace .select(['col1','col2']) with .selectAll()
-FIX 11: In types.ts make tenant_id plain string on EVERY table interface
-FIX 12: In types.ts Generated<> only on id, created_at, updated_at, is_active, read
-FIX 13: In tasks files replace 'TODO' with 'ToDo', 'IN_PROGRESS' with 'InProgress', 'DONE' with 'Completed'
-FIX 14: TasksTable must have assignee_id: string | null
-FIX 15: Replace any req: any with AuthRequest interface in ALL controllers
-FIX 16: Replace any query: any with typed DTO in ALL controllers
-FIX 17: Remove api/ prefix from ALL controller decorator paths
-FIX 18: refresh_tokens table must have token_hash column not token
+PHASE 2 — APPLY BUG FIXES (scan all existing files, fix silently)  
+FIX 1: req.user.sub to req.user.id in ALL controllers  
+FIX 2: Remove ALL @UseGuards() from ALL controllers  
+FIX 3: @Roles('ADMIN') to @Roles('Admin') everywhere  
+FIX 4: Remove role field from src/auth/dto/register.dto.ts if present  
+FIX 5: In auth.service.ts hardcode role: 'Admin' for first user  
+FIX 6: Delete src/modules/database/ if it exists  
+FIX 7: Delete src/database/kysely.module.ts if it exists  
+FIX 8: Delete src/database/database.types.ts if it exists  
+FIX 9: Remove KyselyModule from app.module.ts if present  
+FIX 10: In ALL services replace .select(['col1','col2']) with .selectAll()  
+FIX 11: In types.ts make tenant_id plain string on EVERY table interface  
+FIX 12: In types.ts Generated<> only on id, created_at, updated_at, is_active, read  
+FIX 13: In tasks files replace 'TODO' with 'ToDo', 'IN_PROGRESS' with 'InProgress', 'DONE' with 'Completed'  
+FIX 14: TasksTable must have assignee_id: string | null  
+FIX 15: Replace any req: any with AuthRequest interface in ALL controllers  
+FIX 16: Replace any query: any with typed DTO in ALL controllers  
+FIX 17: Remove api/ prefix from ALL controller decorator paths  
+FIX 18: refresh_tokens table must have token_hash column not token  
 
 PHASE 3 — ARCHITECTURE RULES (follow exactly)
 
-CRITICAL ROUTING:
-main.ts sets global prefix /api.
-NEVER put api/ in controller paths.
-@Controller('users') is correct.
+CRITICAL ROUTING:  
+main.ts sets global prefix /api.  
+NEVER put api/ in controller paths.  
+@Controller('users') is correct.  
 @Controller('api/users') is WRONG and causes /api/api/users.
 
-GLOBAL GUARDS:
+GLOBAL GUARDS:  
 Guards registered globally via APP_GUARD. NEVER add @UseGuards() to any controller.
 
-AUTHENTICATION:
-JWT Payload: { sub: userId, email, role, tenant_id }
-req.user: { id, email, role, tenant_id }
-ALWAYS req.user.id — NEVER req.user.sub
+AUTHENTICATION:  
+JWT Payload: { sub: userId, email, role, tenant_id }  
+req.user: { id, email, role, tenant_id }  
+ALWAYS req.user.id — NEVER req.user.sub  
 JwtStrategy MUST load user from DATABASE — return role from DB not token.
 
-AUTH REQUEST INTERFACE:
-File: src/auth/auth-request.interface.ts
-Content:
-  import { Request } from 'express';
-  export interface AuthRequest extends Request {
-    user: { id: string; email: string; role: string; tenant_id: string; }
-  }
+AUTH REQUEST INTERFACE:  
+File: src/auth/auth-request.interface.ts  
+Content:  
+  import { Request } from 'express';  
+  export interface AuthRequest extends Request {  
+    user: { id: string; email: string; role: string; tenant_id: string; }  
+  }  
 Import AuthRequest in EVERY controller. NEVER use req: any.
 
-REFRESH TOKEN SECURITY:
-Store token_hash (bcrypt hashed) not plain token.
-Refresh endpoint must delete old token and create new one.
+REFRESH TOKEN SECURITY:  
+Store token_hash (bcrypt hashed) not plain token.  
+Refresh endpoint must delete old token and create new one.  
 Logout must delete refresh token from database.
 
-TRANSACTIONS:
-Registration and org creation MUST use Kysely transaction:
+TRANSACTIONS:  
+Registration and org creation MUST use Kysely transaction:  
   await db.transaction().execute(async (trx) => { ... });
 
-ROLE VALUES: 'Admin' | 'ProjectManager' | 'Member'
-STATUS VALUES: Task: 'ToDo'|'InProgress'|'Completed' Project: 'Active'|'Archived'
+ROLE VALUES: 'Admin' | 'ProjectManager' | 'Member'  
+STATUS VALUES: Task: 'ToDo'|'InProgress'|'Completed' Project: 'Active'|'Archived'  
 REGISTRATION: hardcode role: 'Admin' for first user — NEVER from body
 
-KYSELY SELECT: NEVER .select(['col1','col2']) — use .selectAll()
-KYSELY Generated<>: ONLY id, created_at, updated_at, is_active, read
-tenant_id is ALWAYS plain string — never Generated
+KYSELY SELECT: NEVER .select(['col1','col2']) — use .selectAll()  
+KYSELY Generated<>: ONLY id, created_at, updated_at, is_active, read  
+tenant_id is ALWAYS plain string — never Generated  
 
-COMPLETE types.ts — use this exact content:
-import { Generated } from 'kysely';
-export interface Database {
-  organizations: OrganizationsTable;
-  users: UsersTable;
-  projects: ProjectsTable;
-  tasks: TasksTable;
-  comments: CommentsTable;
-  attachments: AttachmentsTable;
-  notifications: NotificationsTable;
-  audit_logs: AuditLogsTable;
-  refresh_tokens: RefreshTokensTable;
-}
-export interface OrganizationsTable {
-  id: Generated<string>; tenant_id: string; name: string; created_at: Generated<Date>;
-}
-export interface UsersTable {
-  id: Generated<string>; tenant_id: string; organization_id: string; email: string;
-  password_hash: string; first_name: string; last_name: string; role: string;
-  is_active: Generated<boolean>; created_at: Generated<Date>; updated_at: Generated<Date>;
-}
-export interface ProjectsTable {
-  id: Generated<string>; tenant_id: string; organization_id: string; name: string;
-  description: string | null; deadline: string | null; status: string; created_by: string;
-  created_at: Generated<Date>; updated_at: Generated<Date>;
-}
-export interface TasksTable {
-  id: Generated<string>; tenant_id: string; project_id: string; assignee_id: string | null;
-  title: string; description: string | null; status: string; priority: string | null;
-  due_date: string | null; created_by: string; created_at: Generated<Date>; updated_at: Generated<Date>;
-}
-export interface CommentsTable {
-  id: Generated<string>; tenant_id: string; task_id: string; user_id: string;
-  content: string; created_at: Generated<Date>; updated_at: Generated<Date>;
-}
-export interface AttachmentsTable {
-  id: Generated<string>; tenant_id: string; task_id: string; uploaded_by: string;
-  file_name: string; file_path: string; file_size: number; created_at: Generated<Date>;
-}
-export interface NotificationsTable {
-  id: Generated<string>; tenant_id: string; user_id: string; type: string; message: string;
-  read: Generated<boolean>; entity_type: string | null; entity_id: string | null; created_at: Generated<Date>;
-}
-export interface AuditLogsTable {
-  id: Generated<string>; tenant_id: string; organization_id: string; user_id: string | null;
-  action: string; entity_type: string; entity_id: string | null; metadata: any | null; created_at: Generated<Date>;
-}
-export interface RefreshTokensTable {
-  id: Generated<string>; user_id: string; token_hash: string; expires_at: Date; created_at: Generated<Date>;
-}
-
-DATABASE PATTERNS:
-SELECT with pagination:
-  const page = Number(query.page) || 1;
-  const limit = Math.min(Number(query.limit) || 20, 100);
-  const offset = (page - 1) * limit;
-  const [{ count }] = await this.db.selectFrom('table').select(this.db.fn.count('id').as('count')).where('tenant_id', '=', tenantId).execute();
-  const data = await this.db.selectFrom('table').selectAll().where('tenant_id', '=', tenantId).orderBy('created_at', 'desc').limit(limit).offset(offset).execute();
+DATABASE PATTERNS:  
+SELECT with pagination:  
+  const page = Number(query.page) || 1;  
+  const limit = Math.min(Number(query.limit) || 20, 100);  
+  const offset = (page - 1) * limit;  
+  const [{ count }] = await this.db.selectFrom('table').select(this.db.fn.count('id').as('count')).where('tenant_id', '=', tenantId).execute();  
+  const data = await this.db.selectFrom('table').selectAll().where('tenant_id', '=', tenantId).orderBy('created_at', 'desc').limit(limit).offset(offset).execute();  
   return { data, meta: { total: Number(count), page, limit, totalPages: Math.ceil(Number(count) / limit) } };
 
-INSERT: const record = await this.db.insertInto('table').values({ id: uuidv4(), tenant_id: tenantId, ...dto }).returningAll().executeTakeFirstOrThrow();
-UPDATE: const record = await this.db.updateTable('table').set({ ...dto, updated_at: new Date() }).where('id', '=', id).where('tenant_id', '=', tenantId).returningAll().executeTakeFirst(); if (!record) throw new NotFoundException('Not found');
+INSERT: const record = await this.db.insertInto('table').values({ id: uuidv4(), tenant_id: tenantId, ...dto }).returningAll().executeTakeFirstOrThrow();  
+UPDATE: const record = await this.db.updateTable('table').set({ ...dto, updated_at: new Date() }).where('id', '=', id).where('tenant_id', '=', tenantId).returningAll().executeTakeFirst(); if (!record) throw new NotFoundException('Not found');  
 DELETE: const result = await this.db.deleteFrom('table').where('id', '=', id).where('tenant_id', '=', tenantId).executeTakeFirst(); if (!result.numDeletedRows) throw new NotFoundException('Not found');
 
-ABSOLUTE RULES — VIOLATION MEANS FAILURE:
-1. NEVER add @UseGuards() to any controller
-2. NEVER use req: any — use AuthRequest
-3. NEVER use query: any — use typed DTO
-4. NEVER put api/ in controller paths
-5. Use req.user.id never req.user.sub
-6. EVERY query must filter by tenant_id
-7. Use uuidv4() for all IDs
-8. All list endpoints return { data, meta }
-9. Register hardcodes role: 'Admin'
-10. Task status: 'ToDo', 'InProgress', 'Completed'
-11. Project status: 'Active', 'Archived'
-12. Roles: 'Admin', 'ProjectManager', 'Member'
-13. Every new module added to app.module.ts imports[]
-14. NEVER .select(['col1','col2']) — use .selectAll()
-15. EVERY table has tenant_id: string
-16. Refresh tokens stored as token_hash never plain token
-17. Registration uses Kysely transaction
-18. JwtStrategy loads user from DB
+ABSOLUTE RULES — VIOLATION MEANS FAILURE:  
+1. NEVER add @UseGuards() to any controller  
+2. NEVER use req: any — use AuthRequest  
+3. NEVER use query: any — use typed DTO  
+4. NEVER put api/ in controller paths  
+5. Use req.user.id never req.user.sub  
+6. EVERY query must filter by tenant_id  
+7. Use uuidv4() for all IDs  
+8. All list endpoints return { data, meta }  
+9. Register hardcodes role: 'Admin'  
+10. Task status: 'ToDo', 'InProgress', 'Completed'  
+11. Project status: 'Active', 'Archived'  
+12. Roles: 'Admin', 'ProjectManager', 'Member'  
+13. Every new module added to app.module.ts imports[]  
+14. NEVER .select(['col1','col2']) — use .selectAll()  
+15. EVERY table has tenant_id: string  
+16. Refresh tokens stored as token_hash never plain token  
+17. Registration uses Kysely transaction  
+18. JwtStrategy loads user from DB  
 
-PHASE 4 — IMPLEMENT THIS STORY
-Story Number: 1
-Title: Database Foundation
-Description: Establish the complete database layer with Kysely, typed schema, and a single migration creating all tables.
+PHASE 4 — IMPLEMENT THIS STORY  
+Story Number: 1  
+Title: Database Foundation  
+Description: Establish the complete database layer with Kysely integration, all table types, and a single migration that creates the full schema.
 
-Files to create:
-src/database/database.module.ts
-src/database/database.service.ts
-src/database/types.ts
-src/database/migrations/001_initial.ts
-src/database/migrate.ts
+Files to create:  
+src/database/database.module.ts  
+src/database/database.service.ts  
+src/database/types.ts  
+src/database/migrations/001_initial.ts  
+src/database/migrate.ts  
 
-Files to modify:
-src/app.module.ts
+Files to modify:  
+src/app.module.ts  
 
-Acceptance criteria — ALL must pass:
-DatabaseModule is annotated with @Global() and exports DatabaseService
-DatabaseService extends Kysely<Database> and uses process.env.DATABASE_URL only
-types.ts defines Database interface containing ALL tables from PRD
-All tables in types.ts include id, tenant_id, created_at, updated_at except refresh_tokens which has no tenant_id
-refresh_tokens table in types.ts uses token_hash: string column (NOT token)
-Generated<> is used ONLY for id, created_at, updated_at, is_active, read
-001_initial.ts enables uuid-ossp extension
-001_initial.ts creates ALL tables exactly as defined in PRD including constraints, FKs, checks, unique indexes
-001_initial.ts creates UNIQUE(employee_id, leave_type) on leave_balances
-001_initial.ts creates UNIQUE(employee_id, month, year) on payslips
-001_initial.ts creates index on tenant_id for all tenant tables
-migrate.ts runs all pending migrations on application bootstrap
-app.module.ts imports DatabaseModule
+Acceptance criteria — ALL must pass:  
+DatabaseModule is marked with @Global() and exports DatabaseService  
+DatabaseService extends Kysely<Database> and uses process.env.DATABASE_URL only  
+types.ts defines interfaces for ALL tables in the PRD including organizations, users, departments, employees, attendance, leave_balances, leave_requests, payslips, review_cycles, reviews, documents, announcements, refresh_tokens  
+All table interfaces include tenant_id: string except refresh_tokens  
+RefreshTokensTable uses token_hash: string column not token  
+Generated<> is used ONLY for id, created_at, updated_at, is_active, read  
+001_initial.ts enables uuid-ossp extension  
+001_initial.ts creates ALL tables with proper PKs, FKs, CHECK constraints, UNIQUE constraints, and indexes exactly as defined  
+refresh_tokens table includes user_id FK ON DELETE CASCADE and token_hash column  
+All tables include created_at and updated_at with default now()  
+migrate.ts runs all pending migrations on application startup  
+app.module.ts imports DatabaseModule  
 
-Already completed: []
+Already completed: none  
 
-PHASE 5 — VERIFY BUILD
-Run: npx tsc --noEmit
-Fix all errors. Never use @ts-ignore. Repeat until zero errors.
+PHASE 5 — VERIFY BUILD  
+Run: npx tsc --noEmit  
+Fix all errors. Never use @ts-ignore. Repeat until zero errors.  
 Do NOT proceed to Phase 6 with a broken build.
 
-PHASE 6 — COMMIT AND PUSH
-git add -A
-git commit -m "feat: story-1 Database Foundation"
-git push origin HEAD
+PHASE 6 — COMMIT AND PUSH  
+  git add -A  
+  git commit -m "feat: story-1 Database Foundation"  
+  git push origin HEAD  
 
-After push output exactly:
+After push output exactly:  
 === STORY 1 COMPLETE — NEXT STORY TRIGGERED ===
