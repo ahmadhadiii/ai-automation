@@ -165,6 +165,7 @@ export interface Database {
   leave_balances: LeaveBalancesTable;
   leave_requests: LeaveRequestsTable;
   payroll: PayrollTable;
+  payslips: PayslipsTable;
   review_cycles: ReviewCyclesTable;
   reviews: ReviewsTable;
   documents: DocumentsTable;
@@ -347,6 +348,21 @@ export interface PayrollTable {
   period_end: string;
   base_salary: number;
   deductions: number;
+  net_salary: number;
+  status: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface PayslipsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  employee_id: string;
+  month: number;
+  year: number;
+  base_salary: number;
+  deductions: number;
+  bonuses: number;
   net_salary: number;
   status: string;
   created_at: Generated<Date>;
@@ -966,7 +982,7 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 PHASE 4 — IMPLEMENT THIS STORY
 Story Number: 1
 Title: Database Foundation
-Description: Establish global database layer with Kysely, full schema types, and a single migration that creates all tables.
+Description: Establish the complete database layer with Kysely, typed schema, and a single migration creating all tables.
 
 Files to create:
 src/database/database.module.ts
@@ -979,20 +995,18 @@ Files to modify:
 src/app.module.ts
 
 Acceptance criteria — ALL must pass:
-DatabaseModule is marked with @Global() and exports DatabaseService
-DatabaseService extends Kysely<Database> and reads connection from process.env.DATABASE_URL only
-types.ts defines Database interface including ALL tables from PRD
-Every table interface includes tenant_id: string except refresh_tokens
-refresh_tokens table interface contains token_hash: string column not token
-Generated<> is used ONLY on id, created_at, updated_at, is_active, read fields
+DatabaseModule is annotated with @Global() and exports DatabaseService
+DatabaseService extends Kysely<Database> and uses process.env.DATABASE_URL only
+types.ts defines Database interface containing ALL tables from PRD
+All tables in types.ts include id, tenant_id, created_at, updated_at except refresh_tokens which has no tenant_id
+refresh_tokens table in types.ts uses token_hash: string column (NOT token)
+Generated<> is used ONLY for id, created_at, updated_at, is_active, read
 001_initial.ts enables uuid-ossp extension
-001_initial.ts creates ALL tables with constraints, FKs, unique constraints, and indexes exactly as defined in PRD
-users table has UNIQUE(tenant_id, email)
-leave_balances table has UNIQUE(employee_id, leave_type)
-payslips table has UNIQUE(employee_id, month, year)
-Index idx_users_tenant created on users(tenant_id)
-Index idx_attendance_employee_date created
-migrate.ts runs all pending migrations on startup
+001_initial.ts creates ALL tables exactly as defined in PRD including constraints, FKs, checks, unique indexes
+001_initial.ts creates UNIQUE(employee_id, leave_type) on leave_balances
+001_initial.ts creates UNIQUE(employee_id, month, year) on payslips
+001_initial.ts creates index on tenant_id for all tenant tables
+migrate.ts runs all pending migrations on application bootstrap
 app.module.ts imports DatabaseModule
 
 Already completed: []
@@ -1003,9 +1017,9 @@ Fix all errors. Never use @ts-ignore. Repeat until zero errors.
 Do NOT proceed to Phase 6 with a broken build.
 
 PHASE 6 — COMMIT AND PUSH
-  git add -A
-  git commit -m "feat: story-1 Database Foundation"
-  git push origin HEAD
+git add -A
+git commit -m "feat: story-1 Database Foundation"
+git push origin HEAD
 
 After push output exactly:
 === STORY 1 COMPLETE — NEXT STORY TRIGGERED ===
