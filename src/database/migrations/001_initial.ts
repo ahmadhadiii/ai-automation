@@ -275,6 +275,377 @@ export async function up(db: Kysely<any>): Promise<void> {
     )
     .execute();
 
+  // Departments
+  await db.schema
+    .createTable('departments')
+    .addColumn('id', 'uuid', (col) =>
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
+    )
+    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
+    .addColumn('organization_id', 'uuid', (col) => col.notNull())
+    .addColumn('name', sql`varchar(255)`, (col) => col.notNull())
+    .addColumn('description', 'varchar')
+    .addColumn('manager_id', 'uuid')
+    .addColumn('created_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addColumn('updated_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addForeignKeyConstraint(
+      'fk_departments_org',
+      ['organization_id'],
+      'organizations',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_departments_manager',
+      ['manager_id'],
+      'users',
+      ['id'],
+      (cb) => cb.onDelete('set null'),
+    )
+    .addUniqueConstraint('uq_departments_tenant_name', ['tenant_id', 'name'])
+    .execute();
+
+  // Employees
+  await db.schema
+    .createTable('employees')
+    .addColumn('id', 'uuid', (col) =>
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
+    )
+    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
+    .addColumn('organization_id', 'uuid', (col) => col.notNull())
+    .addColumn('department_id', 'uuid')
+    .addColumn('user_id', 'uuid', (col) => col.notNull())
+    .addColumn('employee_number', 'varchar', (col) => col.notNull())
+    .addColumn('position', 'varchar', (col) => col.notNull())
+    .addColumn('hire_date', 'varchar', (col) => col.notNull())
+    .addColumn('salary', 'numeric')
+    .addColumn('status', 'varchar', (col) => col.notNull().defaultTo('Active'))
+    .addColumn('created_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addColumn('updated_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addForeignKeyConstraint(
+      'fk_employees_org',
+      ['organization_id'],
+      'organizations',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_employees_department',
+      ['department_id'],
+      'departments',
+      ['id'],
+      (cb) => cb.onDelete('set null'),
+    )
+    .addForeignKeyConstraint(
+      'fk_employees_user',
+      ['user_id'],
+      'users',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addUniqueConstraint('uq_employees_tenant_number', [
+      'tenant_id',
+      'employee_number',
+    ])
+    .execute();
+
+  await sql`ALTER TABLE employees ADD CONSTRAINT chk_employees_status CHECK (status IN ('Active', 'Inactive', 'Terminated'))`.execute(db);
+
+  // Attendance
+  await db.schema
+    .createTable('attendance')
+    .addColumn('id', 'uuid', (col) =>
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
+    )
+    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
+    .addColumn('employee_id', 'uuid', (col) => col.notNull())
+    .addColumn('date', 'varchar', (col) => col.notNull())
+    .addColumn('check_in', 'varchar')
+    .addColumn('check_out', 'varchar')
+    .addColumn('status', 'varchar', (col) => col.notNull().defaultTo('Present'))
+    .addColumn('notes', 'varchar')
+    .addColumn('created_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addForeignKeyConstraint(
+      'fk_attendance_employee',
+      ['employee_id'],
+      'employees',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addUniqueConstraint('uq_attendance_tenant_employee_date', [
+      'tenant_id',
+      'employee_id',
+      'date',
+    ])
+    .execute();
+
+  await sql`ALTER TABLE attendance ADD CONSTRAINT chk_attendance_status CHECK (status IN ('Present', 'Absent', 'Late', 'HalfDay'))`.execute(db);
+
+  // Leave Balances
+  await db.schema
+    .createTable('leave_balances')
+    .addColumn('id', 'uuid', (col) =>
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
+    )
+    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
+    .addColumn('employee_id', 'uuid', (col) => col.notNull())
+    .addColumn('leave_type', 'varchar', (col) => col.notNull())
+    .addColumn('total_days', 'numeric', (col) => col.notNull().defaultTo(0))
+    .addColumn('used_days', 'numeric', (col) => col.notNull().defaultTo(0))
+    .addColumn('remaining_days', 'numeric', (col) =>
+      col.notNull().defaultTo(0),
+    )
+    .addColumn('year', 'integer', (col) => col.notNull())
+    .addColumn('created_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addColumn('updated_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addForeignKeyConstraint(
+      'fk_leave_balances_employee',
+      ['employee_id'],
+      'employees',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addUniqueConstraint('uq_leave_balances_tenant_employee_type', [
+      'tenant_id',
+      'employee_id',
+      'leave_type',
+    ])
+    .execute();
+
+  // Leave Requests
+  await db.schema
+    .createTable('leave_requests')
+    .addColumn('id', 'uuid', (col) =>
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
+    )
+    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
+    .addColumn('employee_id', 'uuid', (col) => col.notNull())
+    .addColumn('leave_type', 'varchar', (col) => col.notNull())
+    .addColumn('start_date', 'varchar', (col) => col.notNull())
+    .addColumn('end_date', 'varchar', (col) => col.notNull())
+    .addColumn('days', 'numeric', (col) => col.notNull())
+    .addColumn('reason', 'varchar')
+    .addColumn('status', 'varchar', (col) =>
+      col.notNull().defaultTo('Pending'),
+    )
+    .addColumn('approved_by', 'uuid')
+    .addColumn('created_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addColumn('updated_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addForeignKeyConstraint(
+      'fk_leave_requests_employee',
+      ['employee_id'],
+      'employees',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_leave_requests_approved_by',
+      ['approved_by'],
+      'users',
+      ['id'],
+      (cb) => cb.onDelete('set null'),
+    )
+    .execute();
+
+  await sql`ALTER TABLE leave_requests ADD CONSTRAINT chk_leave_requests_status CHECK (status IN ('Pending', 'Approved', 'Rejected', 'Cancelled'))`.execute(db);
+
+  // Payroll
+  await db.schema
+    .createTable('payroll')
+    .addColumn('id', 'uuid', (col) =>
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
+    )
+    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
+    .addColumn('employee_id', 'uuid', (col) => col.notNull())
+    .addColumn('period_start', 'varchar', (col) => col.notNull())
+    .addColumn('period_end', 'varchar', (col) => col.notNull())
+    .addColumn('base_salary', 'numeric', (col) => col.notNull())
+    .addColumn('deductions', 'numeric', (col) => col.notNull().defaultTo(0))
+    .addColumn('net_salary', 'numeric', (col) => col.notNull())
+    .addColumn('status', 'varchar', (col) =>
+      col.notNull().defaultTo('Pending'),
+    )
+    .addColumn('created_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addColumn('updated_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addForeignKeyConstraint(
+      'fk_payroll_employee',
+      ['employee_id'],
+      'employees',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .execute();
+
+  await sql`ALTER TABLE payroll ADD CONSTRAINT chk_payroll_status CHECK (status IN ('Pending', 'Processed', 'Paid'))`.execute(db);
+
+  // Review Cycles
+  await db.schema
+    .createTable('review_cycles')
+    .addColumn('id', 'uuid', (col) =>
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
+    )
+    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
+    .addColumn('organization_id', 'uuid', (col) => col.notNull())
+    .addColumn('name', sql`varchar(255)`, (col) => col.notNull())
+    .addColumn('start_date', 'varchar', (col) => col.notNull())
+    .addColumn('end_date', 'varchar', (col) => col.notNull())
+    .addColumn('status', 'varchar', (col) =>
+      col.notNull().defaultTo('Draft'),
+    )
+    .addColumn('created_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addColumn('updated_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addForeignKeyConstraint(
+      'fk_review_cycles_org',
+      ['organization_id'],
+      'organizations',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .execute();
+
+  await sql`ALTER TABLE review_cycles ADD CONSTRAINT chk_review_cycles_status CHECK (status IN ('Draft', 'Active', 'Completed'))`.execute(db);
+
+  // Reviews
+  await db.schema
+    .createTable('reviews')
+    .addColumn('id', 'uuid', (col) =>
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
+    )
+    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
+    .addColumn('review_cycle_id', 'uuid', (col) => col.notNull())
+    .addColumn('employee_id', 'uuid', (col) => col.notNull())
+    .addColumn('reviewer_id', 'uuid', (col) => col.notNull())
+    .addColumn('rating', 'integer')
+    .addColumn('comments', 'varchar')
+    .addColumn('status', 'varchar', (col) =>
+      col.notNull().defaultTo('Pending'),
+    )
+    .addColumn('created_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addColumn('updated_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addForeignKeyConstraint(
+      'fk_reviews_cycle',
+      ['review_cycle_id'],
+      'review_cycles',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_reviews_employee',
+      ['employee_id'],
+      'employees',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_reviews_reviewer',
+      ['reviewer_id'],
+      'users',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .execute();
+
+  await sql`ALTER TABLE reviews ADD CONSTRAINT chk_reviews_status CHECK (status IN ('Pending', 'InProgress', 'Completed'))`.execute(db);
+  await sql`ALTER TABLE reviews ADD CONSTRAINT chk_reviews_rating CHECK (rating >= 1 AND rating <= 5)`.execute(db);
+
+  // Documents
+  await db.schema
+    .createTable('documents')
+    .addColumn('id', 'uuid', (col) =>
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
+    )
+    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
+    .addColumn('uploaded_by', 'uuid', (col) => col.notNull())
+    .addColumn('employee_id', 'uuid')
+    .addColumn('name', sql`varchar(255)`, (col) => col.notNull())
+    .addColumn('file_path', 'varchar', (col) => col.notNull())
+    .addColumn('file_size', 'integer', (col) => col.notNull())
+    .addColumn('document_type', 'varchar')
+    .addColumn('created_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addForeignKeyConstraint(
+      'fk_documents_uploaded_by',
+      ['uploaded_by'],
+      'users',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_documents_employee',
+      ['employee_id'],
+      'employees',
+      ['id'],
+      (cb) => cb.onDelete('set null'),
+    )
+    .execute();
+
+  // Announcements
+  await db.schema
+    .createTable('announcements')
+    .addColumn('id', 'uuid', (col) =>
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
+    )
+    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
+    .addColumn('organization_id', 'uuid', (col) => col.notNull())
+    .addColumn('title', sql`varchar(255)`, (col) => col.notNull())
+    .addColumn('content', 'varchar', (col) => col.notNull())
+    .addColumn('published_by', 'uuid', (col) => col.notNull())
+    .addColumn('is_active', 'boolean', (col) =>
+      col.notNull().defaultTo(true),
+    )
+    .addColumn('created_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addColumn('updated_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addForeignKeyConstraint(
+      'fk_announcements_org',
+      ['organization_id'],
+      'organizations',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_announcements_published_by',
+      ['published_by'],
+      'users',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .execute();
+
   // Indexes
   await db.schema
     .createIndex('idx_users_tenant_id')
@@ -331,6 +702,12 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
+    .createIndex('idx_comments_tenant_id')
+    .on('comments')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
     .createIndex('idx_attachments_task_id')
     .on('attachments')
     .column('task_id')
@@ -349,9 +726,109 @@ export async function up(db: Kysely<any>): Promise<void> {
     .on('refresh_tokens')
     .column('user_id')
     .execute();
+
+  await db.schema
+    .createIndex('idx_departments_tenant_id')
+    .on('departments')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_employees_tenant_id')
+    .on('employees')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_employees_department_id')
+    .on('employees')
+    .column('department_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_attendance_tenant_id')
+    .on('attendance')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_attendance_employee_id')
+    .on('attendance')
+    .column('employee_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_leave_balances_employee_id')
+    .on('leave_balances')
+    .column('employee_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_leave_requests_employee_id')
+    .on('leave_requests')
+    .column('employee_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_leave_requests_tenant_id')
+    .on('leave_requests')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_payroll_employee_id')
+    .on('payroll')
+    .column('employee_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_payroll_tenant_id')
+    .on('payroll')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_review_cycles_tenant_id')
+    .on('review_cycles')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_reviews_tenant_id')
+    .on('reviews')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_reviews_employee_id')
+    .on('reviews')
+    .column('employee_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_documents_tenant_id')
+    .on('documents')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_announcements_tenant_id')
+    .on('announcements')
+    .column('tenant_id')
+    .execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
+  await db.schema.dropTable('announcements').execute();
+  await db.schema.dropTable('documents').execute();
+  await db.schema.dropTable('reviews').execute();
+  await db.schema.dropTable('review_cycles').execute();
+  await db.schema.dropTable('payroll').execute();
+  await db.schema.dropTable('leave_requests').execute();
+  await db.schema.dropTable('leave_balances').execute();
+  await db.schema.dropTable('attendance').execute();
+  await db.schema.dropTable('employees').execute();
+  await db.schema.dropTable('departments').execute();
   await db.schema.dropTable('refresh_tokens').execute();
   await db.schema.dropTable('audit_logs').execute();
   await db.schema.dropTable('notifications').execute();
