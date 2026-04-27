@@ -1,14 +1,10 @@
 === COMPLETED STORIES ===
-Stories already implemented: 1, 2, 3, 4, 5, 6, 7, 8, 9
-Do NOT re-implement these. Build on top of existing code.
+No stories completed yet. This is the first implementation.
 
 === CURRENT REPO FILE TREE ===
 .ai/
-  project.json
   prompt.txt
   state.json
-  stories.json
-  webhook.txt
 .env.example
 nest-cli.json
 package.json
@@ -163,6 +159,16 @@ export interface Database {
   notifications: NotificationsTable;
   audit_logs: AuditLogsTable;
   refresh_tokens: RefreshTokensTable;
+  departments: DepartmentsTable;
+  employees: EmployeesTable;
+  attendance: AttendanceTable;
+  leave_balances: LeaveBalancesTable;
+  leave_requests: LeaveRequestsTable;
+  payroll: PayrollTable;
+  review_cycles: ReviewCyclesTable;
+  reviews: ReviewsTable;
+  documents: DocumentsTable;
+  announcements: AnnouncementsTable;
 }
 
 export interface OrganizationsTable {
@@ -265,6 +271,135 @@ export interface RefreshTokensTable {
   token_hash: string;
   expires_at: Date;
   created_at: Generated<Date>;
+}
+
+export interface DepartmentsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  manager_id: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface EmployeesTable {
+  id: Generated<string>;
+  tenant_id: string;
+  organization_id: string;
+  department_id: string | null;
+  user_id: string;
+  employee_number: string;
+  position: string;
+  hire_date: string;
+  salary: number | null;
+  status: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface AttendanceTable {
+  id: Generated<string>;
+  tenant_id: string;
+  employee_id: string;
+  date: string;
+  check_in: string | null;
+  check_out: string | null;
+  status: string;
+  notes: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface LeaveBalancesTable {
+  id: Generated<string>;
+  tenant_id: string;
+  employee_id: string;
+  leave_type: string;
+  total_days: number;
+  used_days: number;
+  remaining_days: number;
+  year: number;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface LeaveRequestsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  employee_id: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  days: number;
+  reason: string | null;
+  status: string;
+  approved_by: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface PayrollTable {
+  id: Generated<string>;
+  tenant_id: string;
+  employee_id: string;
+  period_start: string;
+  period_end: string;
+  base_salary: number;
+  deductions: number;
+  net_salary: number;
+  status: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ReviewCyclesTable {
+  id: Generated<string>;
+  tenant_id: string;
+  organization_id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ReviewsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  review_cycle_id: string;
+  employee_id: string;
+  reviewer_id: string;
+  rating: number | null;
+  comments: string | null;
+  status: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface DocumentsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  uploaded_by: string;
+  employee_id: string | null;
+  name: string;
+  file_path: string;
+  file_size: number;
+  document_type: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface AnnouncementsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  organization_id: string;
+  title: string;
+  content: string;
+  published_by: string;
+  is_active: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
 }
 
 
@@ -831,7 +966,7 @@ ABSOLUTE RULES — VIOLATION MEANS FAILURE:
 PHASE 4 — IMPLEMENT THIS STORY
 Story Number: 1
 Title: Database Foundation
-Description: Set up Kysely database integration, typed schema, and a single migration that creates all tables with proper constraints and multi-tenant support.
+Description: Establish global database layer with Kysely, full schema types, and a single migration that creates all tables.
 
 Files to create:
 src/database/database.module.ts
@@ -844,21 +979,23 @@ Files to modify:
 src/app.module.ts
 
 Acceptance criteria — ALL must pass:
-DatabaseModule is annotated with @Global() and exports DatabaseService
-DatabaseService extends Kysely<Database> and uses process.env.DATABASE_URL as the only database configuration
-types.ts defines interfaces for ALL tables in the PRD including organizations, users, departments, employees, attendance, leave_balances, leave_requests, payroll, review_cycles, reviews, documents, announcements, refresh_tokens
-Every table interface includes tenant_id: string except refresh_tokens which has no tenant_id
-refresh_tokens table interface defines token_hash: string column (NOT token)
-Generated<> is used ONLY for id, created_at, updated_at, is_active, read
-tenant_id is NEVER marked as Generated in any table
-001_initial.ts enables uuid-ossp extension and creates ALL tables with correct columns, constraints, checks, FKs, unique constraints, and indexes exactly as defined in PRD
-users table enforces UNIQUE(tenant_id,email) and has idx_users_tenant_id index
-attendance table enforces UNIQUE(tenant_id,employee_id,date)
-leave_balances enforces UNIQUE(tenant_id,employee_id,leave_type)
-migrate.ts runs all pending migrations on application startup
+DatabaseModule is marked with @Global() and exports DatabaseService
+DatabaseService extends Kysely<Database> and reads connection from process.env.DATABASE_URL only
+types.ts defines Database interface including ALL tables from PRD
+Every table interface includes tenant_id: string except refresh_tokens
+refresh_tokens table interface contains token_hash: string column not token
+Generated<> is used ONLY on id, created_at, updated_at, is_active, read fields
+001_initial.ts enables uuid-ossp extension
+001_initial.ts creates ALL tables with constraints, FKs, unique constraints, and indexes exactly as defined in PRD
+users table has UNIQUE(tenant_id, email)
+leave_balances table has UNIQUE(employee_id, leave_type)
+payslips table has UNIQUE(employee_id, month, year)
+Index idx_users_tenant created on users(tenant_id)
+Index idx_attendance_employee_date created
+migrate.ts runs all pending migrations on startup
 app.module.ts imports DatabaseModule
 
-Already completed: none
+Already completed: []
 
 PHASE 5 — VERIFY BUILD
 Run: npx tsc --noEmit
@@ -866,9 +1003,9 @@ Fix all errors. Never use @ts-ignore. Repeat until zero errors.
 Do NOT proceed to Phase 6 with a broken build.
 
 PHASE 6 — COMMIT AND PUSH
-git add -A
-git commit -m "feat: story-1 Database Foundation"
-git push origin HEAD
+  git add -A
+  git commit -m "feat: story-1 Database Foundation"
+  git push origin HEAD
 
 After push output exactly:
 === STORY 1 COMPLETE — NEXT STORY TRIGGERED ===

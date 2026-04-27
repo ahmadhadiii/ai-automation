@@ -419,8 +419,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       ['id'],
       (cb) => cb.onDelete('cascade'),
     )
-    .addUniqueConstraint('uq_leave_balances_tenant_employee_type', [
-      'tenant_id',
+    .addUniqueConstraint('uq_leave_balances_employee_type', [
       'employee_id',
       'leave_type',
     ])
@@ -499,6 +498,45 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await sql`ALTER TABLE payroll ADD CONSTRAINT chk_payroll_status CHECK (status IN ('Pending', 'Processed', 'Paid'))`.execute(db);
+
+  // Payslips
+  await db.schema
+    .createTable('payslips')
+    .addColumn('id', 'uuid', (col) =>
+      col.primaryKey().defaultTo(sql`uuid_generate_v4()`),
+    )
+    .addColumn('tenant_id', 'uuid', (col) => col.notNull())
+    .addColumn('employee_id', 'uuid', (col) => col.notNull())
+    .addColumn('month', 'integer', (col) => col.notNull())
+    .addColumn('year', 'integer', (col) => col.notNull())
+    .addColumn('base_salary', 'numeric', (col) => col.notNull())
+    .addColumn('deductions', 'numeric', (col) => col.notNull().defaultTo(0))
+    .addColumn('bonuses', 'numeric', (col) => col.notNull().defaultTo(0))
+    .addColumn('net_salary', 'numeric', (col) => col.notNull())
+    .addColumn('status', 'varchar', (col) =>
+      col.notNull().defaultTo('Draft'),
+    )
+    .addColumn('created_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addColumn('updated_at', sql`timestamptz`, (col) =>
+      col.notNull().defaultTo(sql`now()`),
+    )
+    .addForeignKeyConstraint(
+      'fk_payslips_employee',
+      ['employee_id'],
+      'employees',
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addUniqueConstraint('uq_payslips_employee_month_year', [
+      'employee_id',
+      'month',
+      'year',
+    ])
+    .execute();
+
+  await sql`ALTER TABLE payslips ADD CONSTRAINT chk_payslips_status CHECK (status IN ('Draft', 'Finalized', 'Paid'))`.execute(db);
 
   // Review Cycles
   await db.schema
@@ -648,7 +686,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 
   // Indexes
   await db.schema
-    .createIndex('idx_users_tenant_id')
+    .createIndex('idx_users_tenant')
     .on('users')
     .column('tenant_id')
     .execute();
@@ -757,6 +795,8 @@ export async function up(db: Kysely<any>): Promise<void> {
     .column('employee_id')
     .execute();
 
+  await sql`CREATE INDEX idx_attendance_employee_date ON attendance (employee_id, date)`.execute(db);
+
   await db.schema
     .createIndex('idx_leave_balances_employee_id')
     .on('leave_balances')
@@ -784,6 +824,18 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createIndex('idx_payroll_tenant_id')
     .on('payroll')
+    .column('tenant_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_payslips_employee_id')
+    .on('payslips')
+    .column('employee_id')
+    .execute();
+
+  await db.schema
+    .createIndex('idx_payslips_tenant_id')
+    .on('payslips')
     .column('tenant_id')
     .execute();
 
@@ -823,6 +875,7 @@ export async function down(db: Kysely<any>): Promise<void> {
   await db.schema.dropTable('documents').execute();
   await db.schema.dropTable('reviews').execute();
   await db.schema.dropTable('review_cycles').execute();
+  await db.schema.dropTable('payslips').execute();
   await db.schema.dropTable('payroll').execute();
   await db.schema.dropTable('leave_requests').execute();
   await db.schema.dropTable('leave_balances').execute();

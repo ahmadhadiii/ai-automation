@@ -16,6 +16,7 @@ export interface Database {
   leave_balances: LeaveBalancesTable;
   leave_requests: LeaveRequestsTable;
   payroll: PayrollTable;
+  payslips: PayslipsTable;
   review_cycles: ReviewCyclesTable;
   reviews: ReviewsTable;
   documents: DocumentsTable;
@@ -198,6 +199,21 @@ export interface PayrollTable {
   period_end: string;
   base_salary: number;
   deductions: number;
+  net_salary: number;
+  status: string;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface PayslipsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  employee_id: string;
+  month: number;
+  year: number;
+  base_salary: number;
+  deductions: number;
+  bonuses: number;
   net_salary: number;
   status: string;
   created_at: Generated<Date>;
